@@ -744,6 +744,17 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
       <div class="card-hdr"><div class="card-title">Payment rate trend</div></div>
       <div class="card-body"><div class="chart-canvas-wrap"><canvas id="payRateChart"></canvas></div></div>
     </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Units consumption</div></div>
+      <div class="card-body"><div class="chart-canvas-wrap"><canvas id="unitsTrendChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Billed by entity type</div></div>
+      <div class="card-body" style="display:flex;align-items:center;gap:20px">
+        <div class="chart-canvas-wrap" style="height:160px;width:160px;flex-shrink:0"><canvas id="typeSplitChart"></canvas></div>
+        <div id="type-split-legend" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
   </div>
   <div class="card">
     <div class="card-hdr">
@@ -1994,7 +2005,7 @@ function renderReports() {
     <div class="stat-card"><div class="stat-lbl">Avg per entity/month</div><div class="stat-val">${DB.entities.length && monthKeys.length ? Math.round(annualUnits/DB.entities.length/monthKeys.length) : 0}</div><div class="stat-sub">units</div></div>
   `;
 
-  ['annualChart','payRateChart'].forEach(id=>{ if(reportCharts[id]){reportCharts[id].destroy();delete reportCharts[id];} });
+  ['annualChart','payRateChart','unitsTrendChart','typeSplitChart'].forEach(id=>{ if(reportCharts[id]){reportCharts[id].destroy();delete reportCharts[id];} });
   const chartOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
   const annualCol = monthKeys.map(m=>getDashStatsForMonth(m,year).collected);
   const annualOut = monthKeys.map(m=>getDashStatsForMonth(m,year).outstanding);
@@ -2015,6 +2026,28 @@ function renderReports() {
     data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[{label:'Payment rate %',data:payRates,borderColor:pal.payRateLine,backgroundColor:pal.payRateFill,fill:true,tension:.3,pointRadius:4,pointBackgroundColor:pal.payRateLine,borderWidth:2}]},
     options:{...chartOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},color:pal.tick}},y:{grid:{color:pal.grid},ticks:{font:{size:9},color:pal.tick,callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'%'}}}}
   });
+
+  const annualUnitsArr = monthKeys.map(m=>getDashStatsForMonth(m,year).totalUnits);
+  reportCharts.unitsTrendChart = new Chart(document.getElementById('unitsTrendChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[{label:'Units',data:annualUnitsArr,backgroundColor:pal.flat,borderRadius:4}]},
+    options:{...chartOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},color:pal.tick}},y:{grid:{color:pal.grid},ticks:{font:{size:9},color:pal.tick}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
+  });
+
+  let flatBilled=0, shopBilled=0;
+  DB.entities.forEach(ent => {
+    const billed = computeBillAmounts(ent.id).filter(b=>b.year===year).reduce((s,b)=>s+b.ownCharge,0);
+    if (ent.type==='shop') shopBilled += billed; else flatBilled += billed;
+  });
+  reportCharts.typeSplitChart = new Chart(document.getElementById('typeSplitChart').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['Flat','Shop'],datasets:[{data:[flatBilled,shopBilled],backgroundColor:[pal.flat,pal.shop],borderWidth:0,hoverOffset:4}]},
+    options:{...chartOpts,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+rs(c.raw)}}}}
+  });
+  document.getElementById('type-split-legend').innerHTML = `
+    <div class="leg-item"><div class="leg-dot" style="background:${pal.flat}"></div>Flat — ${rs(flatBilled)}</div>
+    <div class="leg-item"><div class="leg-dot" style="background:${pal.shop}"></div>Shop — ${rs(shopBilled)}</div>
+  `;
 
   document.getElementById('report-entity-body').innerHTML = DB.entities.map(ent => {
     const computed = computeBillAmounts(ent.id).filter(b=>b.year===year);
