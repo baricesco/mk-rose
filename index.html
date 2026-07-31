@@ -146,23 +146,28 @@ table{border-collapse:collapse;width:100%}
 .topbar-right{display:flex;align-items:center;gap:8px}
 
 /* ── BUTTONS ──────────────────────────────────────────── */
+/* Duolingo-style "chunky" press: a solid color-matched shadow stands in
+   for depth; pressing travels half the shadow's offset and flattens it
+   to 0, so the button visibly sinks into its own shadow on click. */
 .btn{
   display:inline-flex;align-items:center;gap:6px;
   padding:6px 12px;border-radius:var(--radius);font-size:12.5px;font-weight:500;
-  transition:background .15s,color .15s,border-color .15s,transform .1s,opacity .15s;white-space:nowrap;
+  --press-depth: 2px;
+  box-shadow: 0 calc(var(--press-depth) * 2) 0 0 var(--press-shadow, var(--border2));
+  transition:background .15s,color .15s,border-color .15s,transform .08s,opacity .15s,box-shadow .08s,filter .15s;white-space:nowrap;
 }
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
-.btn:active{transform:scale(.96)}
+.btn:active{transform:translateY(var(--press-depth));box-shadow:0 0 0 0 var(--press-shadow, var(--border2))}
 .btn:disabled{opacity:.55;cursor:not-allowed;pointer-events:none;transform:none}
-.btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface)}
+.btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface);--press-shadow:var(--border2)}
 .btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
-.btn-primary{background:var(--green);color:#fff;border:1px solid var(--green)}
-.btn-primary:hover{background:var(--green-hover);border-color:var(--green-hover)}
-.btn-danger{background:var(--red);color:#fff;border:1px solid var(--red)}
-.btn-danger:hover{background:var(--red-hover);border-color:var(--red-hover)}
-.btn-sm{padding:4px 9px;font-size:11.5px}
+.btn-primary{background:var(--green);color:#fff;border:1px solid var(--green);--press-shadow:var(--green-hover)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-danger{background:var(--red);color:#fff;border:1px solid var(--red);--press-shadow:var(--red-hover)}
+.btn-danger:hover{filter:brightness(1.08)}
+.btn-sm{padding:4px 9px;font-size:11.5px;--press-depth:1.5px}
 .btn-sm svg{width:12px;height:12px}
-.btn-xs{padding:3px 7px;font-size:11px}
+.btn-xs{padding:3px 7px;font-size:11px;--press-depth:1.5px}
 .btn-xs svg{width:11px;height:11px}
 .btn-icon{width:32px;height:32px;padding:0;justify-content:center}
 .btn-icon svg{width:16px;height:16px}
@@ -242,10 +247,12 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offs
 .entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .ecard{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
-  padding:14px;cursor:pointer;transition:border-color .15s,box-shadow .15s;
-  border-left-width:3px;
+  padding:14px;cursor:pointer;border-left-width:3px;
+  box-shadow:0 4px 0 0 var(--border2);
+  transition:border-color .15s,box-shadow .1s,transform .08s;
 }
-.ecard:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.ecard:hover{border-color:var(--border2)}
+.ecard:active{transform:translateY(2px);box-shadow:0 0 0 0 var(--border2)}
 .ecard.paid{border-left-color:var(--green)}
 .ecard.unpaid{border-left-color:var(--red)}
 .ecard.partial{border-left-color:var(--amber)}
@@ -411,7 +418,7 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
     <div class="login-error" id="login-error"></div>
     <div class="form-group">
       <label class="form-lbl">Username</label>
-      <input class="form-ctrl" id="login-username" placeholder="accountant@riviera" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+      <input class="form-ctrl" id="login-username" placeholder="Username" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
     </div>
     <div class="form-group">
       <label class="form-lbl">Password</label>

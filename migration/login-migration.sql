@@ -50,10 +50,10 @@ $$;
 revoke all on function public.verify_login(text, text) from public;
 grant execute on function public.verify_login(text, text) to anon, authenticated;
 
--- ── Add your own account(s) ──────────────────────────────────
--- Run this yourself (in the SQL editor) with a real username/password —
--- nothing is seeded automatically. crypt()/gen_salt('bf') hashes it
--- server-side; the plaintext password never gets stored.
---
--- insert into public.accounts (username, password_hash, display_name)
--- values ('accountant@riviera', crypt('choose-a-strong-password', gen_salt('bf')), 'Accountant');
+-- ── Seed account ──────────────────────────────────────────────
+-- crypt()/gen_salt('bf') hashes the password server-side; the plaintext
+-- value never gets stored. Safe to re-run — updates the hash in place
+-- instead of erroring on the second run.
+insert into public.accounts (username, password_hash, display_name)
+values ('billmanager@mkrose', crypt('mkrose10', gen_salt('bf')), 'Bill Manager')
+on conflict (username) do update set password_hash = excluded.password_hash;
