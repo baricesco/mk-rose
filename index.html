@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<script>
+// Set the theme before first paint so there's no flash of the wrong theme.
+(function(){
+  try {
+    var stored = localStorage.getItem('theme');
+    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {}
+})();
+</script>
 <title>MK ROSE — Utility Billing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -39,12 +49,54 @@
   --shadow:     0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
   --shadow-lg:  0 4px 16px rgba(0,0,0,.10);
   --mono:       'JetBrains Mono', monospace;
+  /* solid-background variants: used where the color sits behind white
+     text (button hover, toast, table header) rather than as text-on-tint —
+     kept separate from --green-dk/--red-dk/--blue so dark mode can tune
+     each role for contrast independently. */
+  --green-hover: #0369A1;
+  --red-hover:   #991F2A;
+  --blue-solid:  #2563EB;
+  --toast-bg:    #1A1917;
+  --focus-ring:  rgba(14,165,233,.12);
 }
+
+/* ── DARK THEME ───────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --bg:         #16171B;
+  --surface:    #1E2025;
+  --surface2:   #26282F;
+  --border:     #34363E;
+  --border2:    #45474F;
+  --text:       #EDEDEF;
+  --text2:      #A3A6AD;
+  --text3:      #71747C;
+  --green:      #38BDF8;
+  --green-bg:   rgba(56,165,233,.16);
+  --green-dk:   #7DD3FC;
+  --green-hover:#0EA5E9;
+  --red:        #F87171;
+  --red-bg:     rgba(248,113,113,.16);
+  --red-dk:     #FCA5A5;
+  --red-hover:  #DC2626;
+  --amber:      #FBBF24;
+  --amber-bg:   rgba(251,191,36,.16);
+  --blue:       #60A5FA;
+  --blue-bg:    rgba(96,165,250,.16);
+  --blue-solid: #2563EB;
+  --purple:     #A78BFA;
+  --purple-bg:  rgba(167,139,250,.16);
+  --shadow:     0 1px 3px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.35);
+  --shadow-lg:  0 10px 32px rgba(0,0,0,.6);
+  --toast-bg:   #2A2C33;
+  --focus-ring: rgba(56,189,248,.28);
+}
+:root[data-theme="dark"] img:not([src*=".svg"]) { filter: brightness(.92) contrast(1.02); }
 
 /* ── RESET ────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px;-webkit-font-smoothing:antialiased}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .2s ease,color .2s ease}
+.topbar,.card,.stat-card,.ecard,.modal,.form-ctrl,.toast,.tbl td,.tbl th{transition:background-color .2s ease,border-color .2s ease,color .2s ease}
 button,input,select,textarea{font-family:inherit;font-size:inherit}
 button{cursor:pointer;border:none;background:none}
 input,select,textarea{outline:none}
@@ -91,13 +143,15 @@ table{border-collapse:collapse;width:100%}
 .btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface)}
 .btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
 .btn-primary{background:var(--green);color:#fff;border:1px solid var(--green)}
-.btn-primary:hover{background:var(--green-dk);border-color:var(--green-dk)}
+.btn-primary:hover{background:var(--green-hover);border-color:var(--green-hover)}
 .btn-danger{background:var(--red);color:#fff;border:1px solid var(--red)}
-.btn-danger:hover{background:var(--red-dk);border-color:var(--red-dk)}
+.btn-danger:hover{background:var(--red-hover);border-color:var(--red-hover)}
 .btn-sm{padding:4px 9px;font-size:11.5px}
 .btn-sm svg{width:12px;height:12px}
 .btn-xs{padding:3px 7px;font-size:11px}
 .btn-xs svg{width:11px;height:11px}
+.btn-icon{width:32px;height:32px;padding:0;justify-content:center}
+.btn-icon svg{width:16px;height:16px}
 
 /* ── FOCUS VISIBILITY (keyboard nav) ─────────────────────── */
 .btn:focus-visible,.nav-btn:focus-visible,.modal-close:focus-visible,
@@ -151,7 +205,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offs
   letter-spacing:.05em;color:var(--text3);padding:9px 14px;
   background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;
 }
-.tbl-head-blue th{background:var(--blue);color:#fff;border-bottom-color:var(--blue)}
+.tbl-head-blue th{background:var(--blue-solid);color:#fff;border-bottom-color:var(--blue-solid)}
 .tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
 .tbl tbody tr:last-child td{border-bottom:none}
 .tbl tbody tr:hover td{background:var(--surface2)}
@@ -236,7 +290,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offs
   width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
   font-size:13px;color:var(--text);background:var(--surface);transition:border-color .15s;
 }
-.form-ctrl:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.form-ctrl:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
 .form-ctrl:disabled{background:var(--surface2);color:var(--text3)}
 .form-hint{font-size:11px;color:var(--text3);margin-top:4px}
 .form-calc{background:var(--surface2);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-top:8px;line-height:1.7}
@@ -275,13 +329,13 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
 /* ── TOAST ────────────────────────────────────────────── */
 #toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
 .toast{
-  background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--radius);
+  background:var(--toast-bg);color:#fff;padding:10px 16px;border-radius:var(--radius);
   font-size:12.5px;font-weight:500;box-shadow:var(--shadow-lg);
   animation:toastIn .2s ease;display:flex;align-items:center;gap:8px;
 }
 .toast svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
-.toast.success{background:var(--green-dk)}
-.toast.error{background:var(--red-dk)}
+.toast.success{background:var(--green-hover)}
+.toast.error{background:var(--red-hover)}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* ── EMPTY STATE ──────────────────────────────────────── */
@@ -295,7 +349,7 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
 .search-wrap{position:relative;flex:1;min-width:180px}
 .search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--text3);fill:none;stroke-width:2;pointer-events:none}
 .search-input{width:100%;padding:7px 10px 7px 30px;border:1px solid var(--border);border-radius:var(--radius);font-size:12.5px;background:var(--surface);color:var(--text)}
-.search-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.search-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
 .filter-select{padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12.5px;background:var(--surface);color:var(--text);appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;cursor:pointer}
 .filter-select:focus{outline:none;border-color:var(--green)}
 
@@ -371,6 +425,10 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
     </nav>
   </div>
   <div class="topbar-right">
+    <button class="btn btn-ghost btn-icon" id="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
     <select class="month-selector" id="globalMonth" onchange="onMonthChange()"></select>
     <button class="btn btn-primary" onclick="openAddEntity()">
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1113,6 +1171,69 @@ function getYears() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   THEME (dark / light)
+   The initial value is set synchronously by an inline <script> in
+   <head> (before first paint) to avoid a flash of the wrong theme.
+   This block just wires up the toggle button and keeps charts,
+   which read colors as plain JS strings rather than CSS vars, in sync.
+═══════════════════════════════════════════════════════════ */
+
+function getCurrentTheme() { return document.documentElement.getAttribute('data-theme') || 'light'; }
+
+function updateThemeToggleIcon(theme) {
+  const sun = document.getElementById('theme-icon-sun');
+  const moon = document.getElementById('theme-icon-moon');
+  if (!sun || !moon) return;
+  // Icon shown = the mode a click switches TO.
+  sun.style.display = theme === 'dark' ? '' : 'none';
+  moon.style.display = theme === 'dark' ? 'none' : '';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeToggleIcon(theme);
+  // Chart.js bakes colors in at creation time, so re-render whichever
+  // page currently has charts on screen to pick up the new palette.
+  if (currentPage === 'dashboard') renderDashCharts();
+  else if (currentPage === 'reports') renderReports();
+}
+
+function toggleTheme() {
+  const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem('theme', next); } catch (e) {}
+  applyTheme(next);
+}
+
+// Live-follow the OS theme until the user picks one explicitly via the toggle.
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    let stored = null;
+    try { stored = localStorage.getItem('theme'); } catch (err) {}
+    if (!stored) applyTheme(e.matches ? 'dark' : 'light');
+  });
+}
+
+// Chart.js reads colors as plain strings at chart-creation time, not CSS
+// vars, so it needs its own theme-aware palette kept in step with the CSS.
+function chartPalette() {
+  const dark = getCurrentTheme() === 'dark';
+  return {
+    collected:   dark ? '#38BDF8' : '#0EA5E9',
+    outstanding: dark ? '#F87171' : '#F09595',
+    paid:        dark ? '#38BDF8' : '#0EA5E9',
+    unpaid:      dark ? '#F87171' : '#E24B4A',
+    flat:        dark ? '#38BDF8' : '#0EA5E9',
+    shop:        dark ? '#A78BFA' : '#7C3AED',
+    trendLine:   dark ? '#38BDF8' : '#0EA5E9',
+    trendFill:   dark ? 'rgba(56,189,248,.16)' : 'rgba(14,165,233,.1)',
+    payRateLine: dark ? '#60A5FA' : '#2563EB',
+    payRateFill: dark ? 'rgba(96,165,250,.16)' : 'rgba(37,99,235,.1)',
+    grid: dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)',
+    tick: dark ? '#9298A5' : '#888',
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
    NAV + STATE
 ═══════════════════════════════════════════════════════════ */
 
@@ -1245,49 +1366,50 @@ function renderDashCharts() {
 
   ['billing','donut','units','trend'].forEach(destroyChart);
   const opts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
+  const pal = chartPalette();
 
   chartInstances.billing = new Chart(document.getElementById('billingChart').getContext('2d'), {
     type:'bar',
     data:{ labels:monthLabels, datasets:[
-      {label:'Collected',data:collected,backgroundColor:'#0EA5E9',borderRadius:4},
-      {label:'Outstanding',data:outstanding,backgroundColor:'#F09595',borderRadius:4}
+      {label:'Collected',data:collected,backgroundColor:pal.collected,borderRadius:4},
+      {label:'Outstanding',data:outstanding,backgroundColor:pal.outstanding,borderRadius:4}
     ]},
     options:{...opts,scales:{
-      x:{stacked:true,grid:{display:false},ticks:{font:{size:11},color:'#888'}},
-      y:{stacked:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888',callback:v=>'Rs '+Math.round(v/1000)+'k'}}
+      x:{stacked:true,grid:{display:false},ticks:{font:{size:11},color:pal.tick}},
+      y:{stacked:true,grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick,callback:v=>'Rs '+Math.round(v/1000)+'k'}}
     },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+rs(c.raw)}}}}
   });
 
   const s = getDashStatsForMonth(selectedMonth, selectedYear);
   chartInstances.donut = new Chart(document.getElementById('donutChart').getContext('2d'), {
     type:'doughnut',
-    data:{labels:['Paid','Unpaid'],datasets:[{data:[s.paidCount,s.unpaidCount],backgroundColor:['#0EA5E9','#E24B4A'],borderWidth:0,hoverOffset:4}]},
+    data:{labels:['Paid','Unpaid'],datasets:[{data:[s.paidCount,s.unpaidCount],backgroundColor:[pal.paid,pal.unpaid],borderWidth:0,hoverOffset:4}]},
     options:{...opts,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.raw}}}}
   });
   document.getElementById('donut-sub').textContent = `${s.paidCount} paid, ${s.unpaidCount} unpaid`;
   document.getElementById('donut-legend').innerHTML = `
-    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>${s.paidCount} Paid</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div>${s.unpaidCount} Unpaid</div>
+    <div class="leg-item"><div class="leg-dot" style="background:${pal.paid}"></div>${s.paidCount} Paid</div>
+    <div class="leg-item"><div class="leg-dot" style="background:${pal.unpaid}"></div>${s.unpaidCount} Unpaid</div>
   `;
 
   const entLabels = DB.entities.map(e=>e.name.replace('Flat ','F').replace('Shop ','S'));
   const entUnits = DB.entities.map(e=>{ const b=getBillForMonth(e.id,selectedMonth,selectedYear); return b?b.ownUnits:0; });
-  const entColors = DB.entities.map(e=>e.type==='shop'?'#7C3AED':'#0EA5E9');
+  const entColors = DB.entities.map(e=>e.type==='shop'?pal.shop:pal.flat);
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
     data:{labels:entLabels,datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
     options:{...opts,scales:{
-      x:{grid:{display:false},ticks:{font:{size:10},color:'#888'}},
-      y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888'}}
+      x:{grid:{display:false},ticks:{font:{size:10},color:pal.tick}},
+      y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
     },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
   });
 
   chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
     type:'line',
-    data:{labels:monthLabels,datasets:[{label:'Units',data:unitsArr,borderColor:'#0EA5E9',backgroundColor:'rgba(14,165,233,.1)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#0EA5E9',borderWidth:2}]},
+    data:{labels:monthLabels,datasets:[{label:'Units',data:unitsArr,borderColor:pal.trendLine,backgroundColor:pal.trendFill,fill:true,tension:.35,pointRadius:4,pointBackgroundColor:pal.trendLine,borderWidth:2}]},
     options:{...opts,scales:{
-      x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}},
-      y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888'}}
+      x:{grid:{display:false},ticks:{font:{size:11},color:pal.tick}},
+      y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
     },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
   });
 }
@@ -1722,21 +1844,22 @@ function renderReports() {
   const chartOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
   const annualCol = monthKeys.map(m=>getDashStatsForMonth(m,year).collected);
   const annualOut = monthKeys.map(m=>getDashStatsForMonth(m,year).outstanding);
+  const pal = chartPalette();
 
   reportCharts.annualChart = new Chart(document.getElementById('annualChart').getContext('2d'),{
     type:'bar',
     data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[
-      {label:'Collected',data:annualCol,backgroundColor:'#0EA5E9',borderRadius:4},
-      {label:'Outstanding',data:annualOut,backgroundColor:'#F09595',borderRadius:4}
+      {label:'Collected',data:annualCol,backgroundColor:pal.collected,borderRadius:4},
+      {label:'Outstanding',data:annualOut,backgroundColor:pal.outstanding,borderRadius:4}
     ]},
-    options:{...chartOpts,scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10},color:'#888'}},y:{stacked:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:9},color:'#888',callback:v=>'Rs '+Math.round(v/1000)+'k'}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+rs(c.raw)}}}}
+    options:{...chartOpts,scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10},color:pal.tick}},y:{stacked:true,grid:{color:pal.grid},ticks:{font:{size:9},color:pal.tick,callback:v=>'Rs '+Math.round(v/1000)+'k'}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+rs(c.raw)}}}}
   });
 
   const payRates = monthKeys.map(m=>{const s=getDashStatsForMonth(m,year);return s.paidCount+s.unpaidCount?Math.round(s.paidCount/(s.paidCount+s.unpaidCount)*100):0;});
   reportCharts.payRateChart = new Chart(document.getElementById('payRateChart').getContext('2d'),{
     type:'line',
-    data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[{label:'Payment rate %',data:payRates,borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,.1)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#2563EB',borderWidth:2}]},
-    options:{...chartOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#888'}},y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:9},color:'#888',callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'%'}}}}
+    data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[{label:'Payment rate %',data:payRates,borderColor:pal.payRateLine,backgroundColor:pal.payRateFill,fill:true,tension:.3,pointRadius:4,pointBackgroundColor:pal.payRateLine,borderWidth:2}]},
+    options:{...chartOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},color:pal.tick}},y:{grid:{color:pal.grid},ticks:{font:{size:9},color:pal.tick,callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'%'}}}}
   });
 
   document.getElementById('report-entity-body').innerHTML = DB.entities.map(ent => {
@@ -2751,6 +2874,7 @@ function toast(msg, type='') {
 ═══════════════════════════════════════════════════════════ */
 
 async function init() {
+  updateThemeToggleIcon(getCurrentTheme());
   if (!CONFIGURED) {
     toast('Add your Supabase URL and anon key at the top of the script', 'error');
     initMonthSelector();
