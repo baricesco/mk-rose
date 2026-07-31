@@ -107,6 +107,21 @@ table{border-collapse:collapse;width:100%}
 *::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;border:2px solid var(--bg)}
 *::-webkit-scrollbar-thumb:hover{background:var(--text3)}
 
+/* ── LOGIN SCREEN ─────────────────────────────────────── */
+.login-overlay{
+  position:fixed;inset:0;background:var(--bg);z-index:2000;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.login-card{
+  width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:34px 30px;
+  animation:modalIn .2s ease;
+}
+.login-logo{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600;color:var(--text);margin-bottom:26px}
+.login-title{font-size:16px;font-weight:700;color:var(--text);text-align:center;margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--text3);text-align:center;margin-bottom:24px}
+.login-error{font-size:12px;color:var(--red-dk);background:var(--red-bg);border-radius:var(--radius);padding:9px 11px;margin-bottom:16px;display:none}
+
 /* ── LAYOUT ───────────────────────────────────────────── */
 .app-shell{display:flex;flex-direction:column;min-height:100vh}
 .topbar{
@@ -381,7 +396,32 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
 </style>
 </head>
 <body>
-<div class="app-shell" id="app">
+
+<!-- LOGIN SCREEN -->
+<div class="login-overlay" id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      MK ROSE
+    </div>
+    <div class="login-title">Sign in to open the billing register</div>
+    <div class="login-sub">Enter your account credentials to continue</div>
+    <div class="login-error" id="login-error"></div>
+    <div class="form-group">
+      <label class="form-lbl">Username</label>
+      <input class="form-ctrl" id="login-username" placeholder="accountant@riviera" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">Password</label>
+      <input class="form-ctrl" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')attemptLogin()"/>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" id="login-btn" onclick="attemptLogin()">Sign In</button>
+  </div>
+</div>
+
+<div class="app-shell" id="app" style="display:none">
 
 <!-- TOPBAR -->
 <header class="topbar">
@@ -432,6 +472,9 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
     <button class="btn btn-primary" onclick="openAddEntity()">
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add entity
+    </button>
+    <button class="btn btn-ghost btn-icon" onclick="logout()" aria-label="Sign out" title="Sign out">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
   </div>
 </header>
@@ -1013,6 +1056,70 @@ function setBtnLoading(id, loading, loadingText) {
     btn.disabled = false;
     if (btn.dataset.origText !== undefined) { btn.innerHTML = btn.dataset.origText; delete btn.dataset.origText; }
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOGIN GATE  (simple table-based check, not Supabase Auth)
+
+   verify_login() is a Postgres RPC (see migration/login-migration.sql)
+   that compares a hashed password server-side and only ever returns
+   true/false — the accounts table itself has no anon/authenticated
+   RLS policies, so its contents (including password hashes) are never
+   reachable from the browser.
+
+   This gates the UI only. The app's data tables already use permissive
+   anon policies (see the other migrations), so this is not a substitute
+   for real access control — just a front door for casual/internal use.
+═══════════════════════════════════════════════════════════ */
+
+const AUTH_KEY = 'mkrose_auth_user';
+
+function isLoggedIn() {
+  try { return !!localStorage.getItem(AUTH_KEY); } catch (e) { return false; }
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  setTimeout(() => document.getElementById('login-username')?.focus(), 50);
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+function loginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function attemptLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  loginError('');
+  if (!username || !password) { loginError('Enter both username and password'); return; }
+  if (!CONFIGURED) { loginError('Database not configured'); return; }
+
+  setBtnLoading('login-btn', true, 'Signing in…');
+  try {
+    const { data, error } = await sb.rpc('verify_login', { p_username: username, p_password: password });
+    if (error) { loginError('Login failed: ' + error.message); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !row.ok) { loginError('Invalid username or password'); return; }
+    try { localStorage.setItem(AUTH_KEY, username); } catch (e) {}
+    document.getElementById('login-password').value = '';
+    showApp();
+    init();
+  } finally {
+    setBtnLoading('login-btn', false);
+  }
+}
+
+function logout() {
+  try { localStorage.removeItem(AUTH_KEY); } catch (e) {}
+  showLoginScreen();
 }
 
 /* ── row mappers: snake_case (db) ↔ camelCase (app) ────────── */
@@ -2877,7 +2984,7 @@ async function init() {
   if (ok && !DB.entities.length) toast('Connected. Add your first entity to begin.', 'success');
 }
 
-init();
+if (isLoggedIn()) { showApp(); init(); } else { showLoginScreen(); }
 </script>
 </body>
 </html>
