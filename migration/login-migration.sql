@@ -17,7 +17,10 @@
 --  it directly. The hash itself is never sent to the browser.
 -- ============================================================
 
-create extension if not exists pgcrypto;
+-- Supabase installs pgcrypto into the "extensions" schema by default, not
+-- "public" — every crypt()/gen_salt() call below is schema-qualified so it
+-- resolves regardless of the calling session's search_path.
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.accounts (
   id            bigint generated always as identity primary key,
@@ -35,14 +38,14 @@ create or replace function public.verify_login(p_username text, p_password text)
 returns table (ok boolean, display_name text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query
     select true, a.display_name
     from public.accounts a
     where a.username = p_username
-      and a.password_hash = crypt(p_password, a.password_hash)
+      and a.password_hash = extensions.crypt(p_password, a.password_hash)
     limit 1;
 end;
 $$;
@@ -55,5 +58,5 @@ grant execute on function public.verify_login(text, text) to anon, authenticated
 -- value never gets stored. Safe to re-run — updates the hash in place
 -- instead of erroring on the second run.
 insert into public.accounts (username, password_hash, display_name)
-values ('billmanager@mkrose', crypt('mkrose10', gen_salt('bf')), 'Bill Manager')
+values ('billmanager@mkrose', extensions.crypt('mkrose10', extensions.gen_salt('bf')), 'Bill Manager')
 on conflict (username) do update set password_hash = excluded.password_hash;
