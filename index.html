@@ -1,0 +1,2769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MK ROSE — Utility Billing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ── TOKENS ───────────────────────────────────────────── */
+:root {
+  --bg:         #F7F6F3;
+  --surface:    #FFFFFF;
+  --surface2:   #F0EFEb;
+  --border:     #E4E3DF;
+  --border2:    #D0CFC9;
+  --text:       #1A1917;
+  --text2:      #6B6A66;
+  --text3:      #A09E99;
+  --green:      #0EA5E9;
+  --green-bg:   #E0F2FE;
+  --green-dk:   #0369A1;
+  --red:        #DC3545;
+  --red-bg:     #FDECEA;
+  --red-dk:     #991F2A;
+  --amber:      #D97706;
+  --amber-bg:   #FEF3C7;
+  --blue:       #2563EB;
+  --blue-bg:    #EFF6FF;
+  --purple:     #7C3AED;
+  --purple-bg:  #F5F3FF;
+  --radius:     8px;
+  --radius-lg:  12px;
+  --shadow:     0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:  0 4px 16px rgba(0,0,0,.10);
+  --mono:       'JetBrains Mono', monospace;
+}
+
+/* ── RESET ────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer;border:none;background:none}
+input,select,textarea{outline:none}
+table{border-collapse:collapse;width:100%}
+::selection{background:var(--green);color:#fff}
+*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;border:2px solid var(--bg)}
+*::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ── LAYOUT ───────────────────────────────────────────── */
+.app-shell{display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  height:52px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 1.5rem;position:sticky;top:0;z-index:100;
+}
+.topbar-left{display:flex;align-items:center;gap:0}
+.logo{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text);margin-right:1.5rem;white-space:nowrap}
+.logo-mark{width:24px;height:24px;background:var(--green);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2.2}
+.nav{display:flex;gap:0}
+.nav-btn{
+  height:52px;padding:0 14px;font-size:12.5px;font-weight:500;
+  color:var(--text2);border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
+  transition:color .15s,border-color .15s;
+}
+.nav-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+.nav-btn:hover{color:var(--text)}
+.nav-btn.active{color:var(--text);border-bottom-color:var(--green)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+/* ── BUTTONS ──────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:var(--radius);font-size:12.5px;font-weight:500;
+  transition:background .15s,color .15s,border-color .15s,transform .1s,opacity .15s;white-space:nowrap;
+}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.55;cursor:not-allowed;pointer-events:none;transform:none}
+.btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--green);color:#fff;border:1px solid var(--green)}
+.btn-primary:hover{background:var(--green-dk);border-color:var(--green-dk)}
+.btn-danger{background:var(--red);color:#fff;border:1px solid var(--red)}
+.btn-danger:hover{background:var(--red-dk);border-color:var(--red-dk)}
+.btn-sm{padding:4px 9px;font-size:11.5px}
+.btn-sm svg{width:12px;height:12px}
+.btn-xs{padding:3px 7px;font-size:11px}
+.btn-xs svg{width:11px;height:11px}
+
+/* ── FOCUS VISIBILITY (keyboard nav) ─────────────────────── */
+.btn:focus-visible,.nav-btn:focus-visible,.modal-close:focus-visible,
+.breadcrumb a:focus-visible,.ecard:focus-visible{
+  outline:2px solid var(--green);outline-offset:2px;border-radius:var(--radius);
+}
+a:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ── REDUCED MOTION ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+/* ── CONTENT AREA ─────────────────────────────────────── */
+.page{display:none;flex:1;padding:1.25rem 1.5rem;max-width:1280px;margin:0 auto;width:100%}
+.page.active{display:block}
+
+/* ── SECTION LABELS ───────────────────────────────────── */
+.sec-label{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:10px}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+
+/* ── STAT CARDS ───────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:1.25rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px}
+.stat-lbl{font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.stat-val{font-size:22px;font-weight:600;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:5px}
+.stat-val.c-green{color:var(--green-dk)}
+.stat-val.c-red{color:var(--red-dk)}
+.stat-val.c-amber{color:var(--amber)}
+.stat-accent{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-accent svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.sa-green{background:var(--green-bg);color:var(--green)}
+.sa-red{background:var(--red-bg);color:var(--red)}
+.sa-amber{background:var(--amber-bg);color:var(--amber)}
+.sa-blue{background:var(--blue-bg);color:var(--blue)}
+.sa-purple{background:var(--purple-bg);color:var(--purple)}
+
+/* ── CARDS ────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:600;color:var(--text)}
+.card-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.card-body{padding:16px}
+
+/* ── TABLES ───────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto}
+.tbl{font-size:12.5px}
+.tbl th{
+  text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--text3);padding:9px 14px;
+  background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;
+}
+.tbl-head-blue th{background:var(--blue);color:#fff;border-bottom-color:var(--blue)}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover td{background:var(--surface2)}
+.tbl tbody tr.row-clickable{cursor:pointer}
+.tbl tbody tr.row-clickable:hover td{background:var(--green-bg)}
+.tbl-mono{font-family:var(--mono);font-size:12px}
+.tbl-num{text-align:right}
+.tbl th.tbl-num{text-align:right}
+
+/* ── BADGES ───────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5}
+.badge-green{background:var(--green-bg);color:var(--green-dk)}
+.badge-red{background:var(--red-bg);color:var(--red-dk)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+
+/* ── ENTITY CARD GRID ─────────────────────────────────── */
+.entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.ecard{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:14px;cursor:pointer;transition:border-color .15s,box-shadow .15s;
+  border-left-width:3px;
+}
+.ecard:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.ecard.paid{border-left-color:var(--green)}
+.ecard.unpaid{border-left-color:var(--red)}
+.ecard.partial{border-left-color:var(--amber)}
+.ecard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px}
+.eavatar{
+  width:36px;height:36px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;
+}
+.eavatar.flat{background:var(--green-bg);color:var(--green-dk)}
+.eavatar.shop{background:var(--purple-bg);color:var(--purple)}
+.ename{font-size:13px;font-weight:600;color:var(--text)}
+.emeta{font-size:11px;color:var(--text3);margin-top:1px}
+.ecard-body{border-top:1px solid var(--border);padding-top:10px;margin-top:2px}
+.erow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.erow:last-child{margin-bottom:0}
+.erow-lbl{font-size:11px;color:var(--text2)}
+.erow-val{font-size:12px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.erow-val.red{color:var(--red-dk)}
+.erow-val.green{color:var(--green-dk)}
+.ecard-foot{margin-top:10px;display:flex;gap:5px}
+.ecard-foot .btn{flex:1;justify-content:center}
+
+/* ── CHARTS ROW ───────────────────────────────────────── */
+.charts-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-bottom:1.25rem}
+.charts-grid-4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1.25rem}
+.chart-canvas-wrap{position:relative;height:200px}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap}
+.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+
+/* ── MODAL ────────────────────────────────────────────── */
+.overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(2px);
+}
+.overlay.open{display:flex}
+.modal{
+  background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
+  width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+  animation:modalIn .18s ease;
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:600;color:var(--text)}
+.modal-close{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.modal-close:hover{background:var(--surface2)}
+.modal-close svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.modal-body{padding:20px}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* ── FORM ─────────────────────────────────────────────── */
+.form-group{margin-bottom:14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-lbl{display:block;font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.form-ctrl{
+  width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+  font-size:13px;color:var(--text);background:var(--surface);transition:border-color .15s;
+}
+.form-ctrl:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.form-ctrl:disabled{background:var(--surface2);color:var(--text3)}
+.form-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.form-calc{background:var(--surface2);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-top:8px;line-height:1.7}
+.form-calc strong{color:var(--text);font-variant-numeric:tabular-nums}
+select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+
+/* ── ENTITY DETAIL ────────────────────────────────────── */
+.detail-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem}
+.detail-avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-right:14px}
+.detail-name{font-size:20px;font-weight:700;color:var(--text);margin-bottom:3px}
+.detail-meta{font-size:12px;color:var(--text3);display:flex;gap:12px;flex-wrap:wrap}
+.detail-meta span{display:flex;align-items:center;gap:4px}
+.detail-meta svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.detail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.detail-stats .stat-card{padding:12px 14px}
+.locked-hdr-icon{width:15px;height:15px;stroke:var(--text3);fill:none;stroke-width:2;flex-shrink:0}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 20px}
+.detail-field-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px}
+.detail-field-val{font-size:13.5px;font-weight:600;color:var(--text)}
+.bill-table-row-bundled td:first-child{border-left:3px solid var(--amber)}
+.bill-row-chain{background:rgba(217,119,6,.04)}
+.chain-label{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:500;background:var(--amber-bg);color:var(--amber);
+  padding:1px 5px;border-radius:4px;margin-left:6px;vertical-align:middle;
+}
+.bill-breakdown{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+
+/* ── REPORTS PAGE ─────────────────────────────────────── */
+.report-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem}
+
+/* ── SETTINGS PAGE ────────────────────────────────────── */
+.settings-section{margin-bottom:1.5rem}
+.settings-section h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+/* ── TOAST ────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--radius);
+  font-size:12.5px;font-weight:500;box-shadow:var(--shadow-lg);
+  animation:toastIn .2s ease;display:flex;align-items:center;gap:8px;
+}
+.toast svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.toast.success{background:var(--green-dk)}
+.toast.error{background:var(--red-dk)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── EMPTY STATE ──────────────────────────────────────── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-state svg{width:40px;height:40px;stroke:var(--border2);fill:none;stroke-width:1.5;margin-bottom:12px}
+.empty-state p{font-size:13px;margin-bottom:6px;color:var(--text2)}
+.empty-state small{font-size:11px}
+
+/* ── SEARCH / FILTER BAR ──────────────────────────────── */
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:180px}
+.search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--text3);fill:none;stroke-width:2;pointer-events:none}
+.search-input{width:100%;padding:7px 10px 7px 30px;border:1px solid var(--border);border-radius:var(--radius);font-size:12.5px;background:var(--surface);color:var(--text)}
+.search-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.filter-select{padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12.5px;background:var(--surface);color:var(--text);appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;cursor:pointer}
+.filter-select:focus{outline:none;border-color:var(--green)}
+
+/* ── MONTH SELECT (top bar) ───────────────────────────── */
+.month-selector{padding:6px 28px 6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12.5px;background:var(--surface);color:var(--text);appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;cursor:pointer;font-weight:500}
+.month-selector:focus{outline:none;border-color:var(--green)}
+
+/* ── BACK BREADCRUMB ──────────────────────────────────── */
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2);cursor:pointer;text-decoration:none}
+.breadcrumb a:hover{color:var(--text)}
+.breadcrumb svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ── DIVIDER ──────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:1.25rem 0}
+
+/* ── RESPONSIVE ───────────────────────────────────────── */
+@media(max-width:900px){
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .charts-grid{grid-template-columns:1fr}
+  .detail-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .entity-grid{grid-template-columns:1fr}
+  .topbar{padding:0 1rem}
+  .page{padding:1rem}
+  .nav-btn span{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app-shell" id="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      MK ROSE
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" onclick="navigate('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('entities')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        <span>Entities</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('bills')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+        <span>Bills</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('billprint')">
+        <svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span>Bill Print</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('reports')">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Reports</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('audit')">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>Audit</span>
+      </button>
+      <button class="nav-btn" onclick="navigate('settings')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+  </div>
+  <div class="topbar-right">
+    <select class="month-selector" id="globalMonth" onchange="onMonthChange()"></select>
+    <button class="btn btn-primary" onclick="openAddEntity()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add entity
+    </button>
+  </div>
+</header>
+
+<!-- PAGES -->
+
+<!-- ════════════════════════════════════════ DASHBOARD ════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="stats-row" id="dash-stats"></div>
+
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Monthly billing overview</div><div class="card-sub">Collected vs outstanding per month</div></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Collected</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#F09595"></div>Outstanding</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="chart-canvas-wrap"><canvas id="billingChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Payment status</div><div class="card-sub" id="donut-sub"></div></div>
+      </div>
+      <div class="card-body" style="display:flex;align-items:center;gap:20px">
+        <div class="chart-canvas-wrap" style="height:160px;width:160px;flex-shrink:0"><canvas id="donutChart"></canvas></div>
+        <div id="donut-legend" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Units by entity</div><div class="card-sub">Current month consumption</div></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Flat</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div>Shop</div>
+        </div>
+      </div>
+      <div class="card-body"><div class="chart-canvas-wrap"><canvas id="unitsChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Building consumption trend</div><div class="card-sub">Total units per month</div></div>
+      </div>
+      <div class="card-body"><div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="sec-hdr">
+    <div class="sec-label">Entities — <span id="month-label-dash"></span></div>
+    <div style="display:flex;gap:8px">
+      <select class="filter-select" id="dash-filter-type" onchange="renderDashEntities()">
+        <option value="">All types</option>
+        <option value="flat">Flats</option>
+        <option value="shop">Shops</option>
+      </select>
+      <select class="filter-select" id="dash-filter-status" onchange="renderDashEntities()">
+        <option value="">All status</option>
+        <option value="paid">Paid</option>
+        <option value="unpaid">Unpaid</option>
+      </select>
+    </div>
+  </div>
+  <div class="entity-grid" id="dash-entity-grid"></div>
+</div>
+
+<!-- ════════════════════════════════════════ ENTITIES ════════ -->
+<div class="page" id="page-entities">
+  <!-- List view -->
+  <div id="entities-list-view">
+    <div class="sec-hdr" style="margin-bottom:1rem">
+      <div>
+        <div class="card-title" style="font-size:16px">Entities</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">All registered flats and shops</div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddEntity()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add entity
+      </button>
+    </div>
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="entity-search" placeholder="Search entities…" oninput="renderEntitiesPage()"/>
+      </div>
+      <select class="filter-select" id="entity-filter-type" onchange="renderEntitiesPage()">
+        <option value="">All types</option>
+        <option value="flat">Flats</option>
+        <option value="shop">Shops</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table class="tbl" id="entities-tbl">
+          <thead>
+            <tr>
+              <th>Entity</th>
+              <th>Owner</th>
+              <th>Type</th>
+              <th>Meter No.</th>
+              <th class="tbl-num">Current Bill</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="entities-tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail view (shown when entity selected) -->
+  <div id="entity-detail-view" style="display:none"></div>
+</div>
+
+<!-- ════════════════════════════════════════ BILLS ══════════ -->
+<div class="page" id="page-bills">
+  <div class="sec-hdr" style="margin-bottom:1rem">
+    <div>
+      <div class="card-title" style="font-size:16px">Bills</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px">All billing entries across all entities</div>
+    </div>
+    <button class="btn btn-primary" onclick="openAddBill()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add reading
+    </button>
+  </div>
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" id="bills-search" placeholder="Search by entity…" oninput="renderBillsPage()"/>
+    </div>
+    <select class="filter-select" id="bills-filter-month" onchange="renderBillsPage()">
+      <option value="">All months</option>
+    </select>
+    <select class="filter-select" id="bills-filter-status" onchange="renderBillsPage()">
+      <option value="">All status</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead class="tbl-head-blue">
+          <tr>
+            <th>Entity</th>
+            <th>Month</th>
+            <th class="tbl-num">Prev Reading</th>
+            <th class="tbl-num">Curr Reading</th>
+            <th class="tbl-num">Units Used</th>
+            <th class="tbl-num">Rate</th>
+            <th class="tbl-num">Bill Amount</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bills-tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ BILL PRINT ══════ -->
+<div class="page" id="page-billprint">
+  <div class="sec-hdr" style="margin-bottom:1rem">
+    <div>
+      <div class="card-title" style="font-size:16px">Bill Print</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px">Download bills as PDF — one at a time, or all at once as a ZIP</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="filter-select month-selector" id="bp-month" onchange="renderBillPrintPage()"></select>
+      <button class="btn btn-primary" id="bp-download-all-btn" onclick="downloadAllBillsZip()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download all (ZIP)
+      </button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th>Owner</th>
+            <th>Type</th>
+            <th class="tbl-num">Amount due</th>
+            <th>Status</th>
+            <th>Photo</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bp-tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ REPORTS ════════ -->
+<div class="page" id="page-reports">
+  <div class="sec-hdr" style="margin-bottom:1rem">
+    <div>
+      <div class="card-title" style="font-size:16px">Reports</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px">Building-wide analytics and summaries</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <select class="filter-select" id="report-year" onchange="renderReports()"></select>
+    </div>
+  </div>
+  <div class="stats-row" id="report-stats"></div>
+  <div class="charts-grid-4">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Annual collection</div></div>
+      <div class="card-body"><div class="chart-canvas-wrap"><canvas id="annualChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Payment rate trend</div></div>
+      <div class="card-body"><div class="chart-canvas-wrap"><canvas id="payRateChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Entity performance</div>
+      <div class="card-sub" style="font-size:11px;color:var(--text3)">Lifetime collection and outstanding</div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th>Type</th>
+            <th class="tbl-num">Total Billed</th>
+            <th class="tbl-num">Total Collected</th>
+            <th class="tbl-num">Outstanding</th>
+            <th class="tbl-num">Total Units</th>
+            <th>Payment Rate</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="report-entity-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ SETTINGS ════════ -->
+<div class="page" id="page-settings">
+  <div style="max-width:900px">
+    <div class="card-title" style="font-size:16px;margin-bottom:1.25rem">Settings</div>
+
+    <div class="settings-section">
+      <h3>Month Lock</h3>
+      <div class="form-hint" style="margin-bottom:10px">Lock a completed month to freeze it — no bill can be added, edited, deleted, restored or marked paid for a locked period until it's unlocked.</div>
+      <div id="month-lock-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Lock / Unlock Period Confirm -->
+<div class="overlay" id="modal-confirm-lock">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="confirm-lock-title">Lock period</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-confirm-lock')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="confirm-lock-body" style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px"></div>
+      <label class="form-lbl" id="confirm-lock-label">Type LOCK to confirm</label>
+      <input class="form-ctrl" id="confirm-lock-input" placeholder="Type LOCK to confirm" autocomplete="off" oninput="onConfirmLockInput()" onkeydown="if(event.key==='Enter')document.getElementById('confirm-lock-btn').click()"/>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-lock')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-lock-btn" disabled>Lock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ AUDIT ════════════ -->
+<div class="page" id="page-audit">
+  <div style="max-width:700px">
+    <div class="card-title" style="font-size:16px;margin-bottom:1.25rem">Audit</div>
+
+    <div class="settings-section">
+      <div class="sec-hdr" style="margin-bottom:6px">
+        <h3 style="margin-bottom:0;padding-bottom:0;border-bottom:none">Change History</h3>
+        <input class="form-ctrl" id="audit-date" type="date" style="width:auto" onchange="loadAudit()"/>
+      </div>
+      <div class="form-hint" style="margin-bottom:10px">Every add, edit, delete and restore, recorded automatically. This log cannot be edited.</div>
+      <div id="audit-list"></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Trash</h3>
+      <div class="form-hint" style="margin-bottom:10px">Deleted entities and bills land here instead of being erased. Restore anything, any time.</div>
+      <div id="trash-list"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.app-shell -->
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════ MODALS ══════ -->
+
+<!-- Add/Edit Entity -->
+<div class="overlay" id="modal-entity">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-entity-title">Add entity</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-entity')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="entity-edit-id"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Entity name *</label>
+          <input class="form-ctrl" id="ef-name" placeholder="e.g. Flat 4"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Type *</label>
+          <select class="form-ctrl" id="ef-type">
+            <option value="flat">Flat</option>
+            <option value="shop">Shop</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Owner name</label>
+          <input class="form-ctrl" id="ef-owner" placeholder="e.g. Muhammad Ali"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Owner phone</label>
+          <input class="form-ctrl" id="ef-owner-phone" placeholder="e.g. +92 300 1234567"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Meter number</label>
+          <input class="form-ctrl" id="ef-meter" placeholder="e.g. MTR-001"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Initial meter reading</label>
+          <input class="form-ctrl" id="ef-init-reading" type="number" value="0" min="0"/>
+          <div class="form-hint">Starting meter value</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-entity')">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-entity" onclick="saveEntity()">Save entity</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Bill / Reading -->
+<div class="overlay" id="modal-bill">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-bill-title">Add meter reading</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-bill')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bill-edit-id"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Entity *</label>
+          <select class="form-ctrl" id="bf-entity" onchange="onBillEntityChange()">
+            <option value="">Select entity…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Month *</label>
+          <select class="form-ctrl" id="bf-month">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Year *</label>
+          <input class="form-ctrl" id="bf-year" type="number" value="2025"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Previous reading</label>
+          <input class="form-ctrl" id="bf-prev" type="number" disabled/>
+          <div class="form-hint">Auto-filled from last entry</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Current reading *</label>
+          <input class="form-ctrl" id="bf-curr" type="number" oninput="calcBillPreview()"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Rate (Rs/unit)</label>
+          <input class="form-ctrl" id="bf-rate" type="number" oninput="calcBillPreview()"/>
+          <div class="form-hint">Defaults to current month rate</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Bill / meter photo</label>
+        <div id="bf-image-dropzone" ondragover="onBillImageDragOver(event)" ondragleave="onBillImageDragLeave(event)" ondrop="onBillImageDrop(event)" style="border:1px dashed var(--border);border-radius:8px;padding:8px;transition:border-color .15s,background .15s">
+          <input class="form-ctrl" id="bf-image" type="file" accept="image/*" onchange="onBillImagePick(event)" style="padding:6px"/>
+          <div class="form-hint">Drag &amp; drop, paste (Ctrl+V), or click to choose a photo of this month's meter or paper bill (optional)</div>
+        </div>
+        <div id="bf-image-preview" style="margin-top:8px;display:none">
+          <img id="bf-image-thumb" alt="bill photo" style="max-width:140px;max-height:120px;border-radius:8px;border:1px solid var(--border)"/>
+          <button type="button" class="btn btn-ghost btn-xs" style="margin-left:8px;vertical-align:top" onclick="clearBillImage()">Remove</button>
+        </div>
+      </div>
+      <div class="form-calc" id="bill-preview" style="display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bill')">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-bill" onclick="saveBill()">Save reading</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Rate -->
+<!-- Mark Paid Confirm -->
+<div class="overlay" id="modal-confirm-pay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr">
+      <div class="modal-title">Confirm payment</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-confirm-pay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="confirm-pay-body" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-lbl">Payment mode</label>
+          <select class="form-ctrl" id="pay-mode">
+            <option value="cash">Cash</option>
+            <option value="askari">Askari Bank</option>
+            <option value="easypaisa">Easypaisa</option>
+            <option value="jazzcash">JazzCash</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Date paid</label>
+          <input class="form-ctrl" id="pay-date" type="date"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">Remarks</label>
+        <input class="form-ctrl" id="pay-remarks" placeholder="Optional note" autocomplete="off"/>
+      </div>
+
+      <div class="divider" style="margin:14px 0 12px"></div>
+
+      <label class="form-lbl">Type PAID to confirm</label>
+      <input class="form-ctrl" id="confirm-pay-input" placeholder="Type PAID to confirm" autocomplete="off" oninput="onConfirmPayInput()" onkeydown="if(event.key==='Enter')document.getElementById('confirm-pay-btn').click()"/>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-pay')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-pay-btn" disabled>Mark paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="overlay" id="modal-confirm-delete">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hdr">
+      <div class="modal-title">Confirm delete</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-confirm-delete')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="confirm-delete-body" style="font-size:13px;color:var(--text2);line-height:1.7"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-delete')">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Generation Progress (bill print) -->
+<div class="overlay" id="modal-pdf-progress">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="pdf-progress-title">Generating PDF…</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;min-height:18px" id="pdf-progress-status">Preparing…</div>
+      <div style="background:var(--surface2);border-radius:99px;height:8px;overflow:hidden">
+        <div id="pdf-progress-bar" style="height:100%;width:0%;background:var(--green);transition:width .25s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <small style="font-size:11px;color:var(--text3)">Fetching photos and rendering — please keep this tab open</small>
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px" id="pdf-progress-count"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Unlock Edit Confirm -->
+<div class="overlay" id="modal-confirm-edit">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hdr">
+      <div class="modal-title">Unlock editing</div>
+      <button class="modal-close" aria-label="Close" onclick="closeModal('modal-confirm-edit')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">This record is locked to prevent accidental changes. Type <strong style="color:var(--text)">EDIT</strong> below to unlock it.</div>
+      <input class="form-ctrl" id="unlock-edit-input" placeholder="Type EDIT to confirm" autocomplete="off" oninput="onUnlockEditInput()" onkeydown="if(event.key==='Enter')submitUnlockEdit()"/>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-edit')">Cancel</button>
+      <button class="btn btn-primary" id="unlock-edit-btn" disabled onclick="submitUnlockEdit()">Edit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ⚙️  SUPABASE CONFIG  — paste your project values here
+   (Project Settings → API → Project URL + anon/public key)
+═══════════════════════════════════════════════════════════ */
+const SUPABASE_URL      = 'https://hfbtufdkbrozrknndrtb.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_2UHSLhfxhm71zblSE2Kpzg_ezIiOr_i';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR-ANON');
+
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS + IN-MEMORY MIRROR OF THE DATABASE
+   (Supabase is the source of truth; we hydrate this on load
+    and after every mutation, then render synchronously.)
+═══════════════════════════════════════════════════════════ */
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const DEFAULT_SETTINGS = { buildingName:'', address:'', contact:'', logoUrl:'', currentRate:0 };
+
+// Records one line in the audit log. Fire-and-forget: a logging failure
+// must never block or roll back the actual data change it's describing.
+async function logAudit(tableName, recordId, action, summary) {
+  try {
+    await sb.from('audit_log').insert({ table_name: tableName, record_id: recordId, action, summary });
+  } catch (e) { console.warn('audit log failed', e); }
+}
+
+let DB = { entities: [], bills: [], rates: [], lockedPeriods: [], settings: { ...DEFAULT_SETTINGS } };
+
+const num = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
+const round2 = v => Math.round((num(v) + Number.EPSILON) * 100) / 100;
+const rs  = v => 'Rs ' + num(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+// Disables a button and swaps its label while an async save is in flight,
+// so a slow connection can't be double-clicked into a duplicate row.
+function setBtnLoading(id, loading, loadingText) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  if (loading) {
+    if (btn.dataset.origText === undefined) btn.dataset.origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = loadingText;
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.origText !== undefined) { btn.innerHTML = btn.dataset.origText; delete btn.dataset.origText; }
+  }
+}
+
+/* ── row mappers: snake_case (db) ↔ camelCase (app) ────────── */
+function mapEntity(r){ return { id:r.id, name:r.name, type:r.type, meter:r.meter||'', ownerName:r.owner_name||'', ownerPhone:r.owner_phone||'' }; }
+function mapBill(r){ return { id:r.id, entityId:r.entity_id, month:r.month, year:r.year, prevReading:num(r.prev_reading), currReading:num(r.curr_reading), unitsUsed:num(r.units_used), rate:num(r.rate), paid:!!r.paid, imageUrl:r.bill_image_url||'', paidAt:r.paid_at||null, paymentMode:r.payment_mode||'', paymentRemarks:r.payment_remarks||'' }; }
+
+const PAYMENT_MODE_LABELS = { cash:'Cash', askari:'Askari Bank', easypaisa:'Easypaisa', jazzcash:'JazzCash', other:'Other' };
+function paymentModeLabel(mode) { return PAYMENT_MODE_LABELS[mode] || mode || ''; }
+function formatPaidDate(iso) { return iso ? new Date(iso).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' }) : ''; }
+function mapRate(r){ return { id:r.id, month:r.month, year:r.year, rate:num(r.rate) }; }
+
+/* ═══════════════════════════════════════════════════════════
+   DATA LOADING
+═══════════════════════════════════════════════════════════ */
+
+async function loadAll() {
+  if (!CONFIGURED) return false;
+  const [ent, bil, rat, set, lck] = await Promise.all([
+    sb.from('entities').select('*').is('deleted_at', null).order('id', { ascending: true }),
+    sb.from('bills').select('*').is('deleted_at', null),
+    sb.from('rates').select('*').is('deleted_at', null),
+    sb.from('settings').select('*').eq('id', 1).maybeSingle(),
+    sb.from('locked_periods').select('*'),
+  ]);
+  const err = ent.error || bil.error || rat.error || set.error || lck.error;
+  if (err) { toast('Database error: ' + err.message, 'error'); console.error(err); return false; }
+
+  DB.entities = (ent.data || []).map(mapEntity);
+  DB.bills    = (bil.data || []).map(mapBill);
+  DB.rates    = (rat.data || []).map(mapRate);
+  DB.lockedPeriods = (lck.data || []).map(r => ({ month: r.month, year: r.year }));
+  DB.settings = set.data ? {
+    buildingName: set.data.building_name || '',
+    address:      set.data.address || '',
+    contact:      set.data.contact || '',
+    logoUrl:      set.data.logo_url || '',
+    currentRate:  num(set.data.current_rate),
+  } : { ...DEFAULT_SETTINGS };
+  return true;
+}
+
+function isPeriodLocked(month, year) {
+  return DB.lockedPeriods.some(p => p.month === month && p.year === year);
+}
+
+// Reload from DB and re-render whatever page is showing.
+async function refresh() {
+  await loadAll();
+  rerenderCurrent();
+}
+
+function rerenderCurrent() {
+  if (currentPage === 'dashboard') renderDashboard();
+  else if (currentPage === 'entities') { if (currentEntityDetail) showEntityDetail(currentEntityDetail); else renderEntitiesPage(); }
+  else if (currentPage === 'bills') renderBillsPage();
+  else if (currentPage === 'billprint') renderBillPrintPage();
+  else if (currentPage === 'reports') renderReports();
+  else if (currentPage === 'audit') { loadAudit(); loadTrash(); }
+  else if (currentPage === 'settings') renderMonthLockList();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BILLING LOGIC  (clean carry-forward model)
+
+   • ownUnits   = curr − prev               (this month's consumption)
+   • ownCharge  = ownUnits × rate            (this month's own charge)
+   • arrears    = sum of ownCharge of the unbroken streak of UNPAID
+                  months immediately before this one
+   • totalDue   = ownCharge + arrears       (amount payable now)
+
+   Carried amounts keep their ORIGINAL month's rate (no re-rating),
+   so summing ownCharge across months never double-counts.
+═══════════════════════════════════════════════════════════ */
+
+function getEntityBills(entityId) {
+  return DB.bills
+    .filter(b => b.entityId === entityId)
+    .sort((a,b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+}
+
+function computeBillAmounts(entityId) {
+  const bills = getEntityBills(entityId);
+  const result = [];
+  let arrears = 0;
+  let arrearsMonths = [];
+
+  for (const b of bills) {
+    const ownUnits  = round2(Math.max(0, num(b.currReading) - num(b.prevReading)));
+    const ownCharge = round2(ownUnits * num(b.rate));
+    const totalDue  = round2(ownCharge + arrears);
+
+    result.push({
+      ...b,
+      ownUnits,
+      ownCharge,
+      arrears,
+      arrearsMonths: [...arrearsMonths],
+      totalDue,
+    });
+
+    if (b.paid) { arrears = 0; arrearsMonths = []; }
+    else { arrears = round2(arrears + ownCharge); arrearsMonths.push({ month:b.month, year:b.year, charge:ownCharge }); }
+  }
+  return result;
+}
+
+function getBillForMonth(entityId, month, year) {
+  return computeBillAmounts(entityId).find(b => b.month === month && b.year === year) || null;
+}
+
+function getChainInfo(entityId, month, year) {
+  const entry = computeBillAmounts(entityId).find(b => b.month === month && b.year === year);
+  if (!entry) return { months: [], totalDue: 0 };
+  return { months: entry.arrearsMonths, totalDue: entry.totalDue, thisCharge: entry.ownCharge };
+}
+
+// Paying month X pays X plus every consecutive unpaid month before it.
+// payment = { mode, remarks, paidAt } — recorded on every bill in the chain
+// since one payment settles all of them together.
+async function markPaidUpTo(entityId, month, year, payment) {
+  const bills = getEntityBills(entityId);
+  const idx = bills.findIndex(b => b.month === month && b.year === year);
+  if (idx < 0) return false;
+  let start = idx;
+  while (start > 0 && !bills[start-1].paid) start--;
+  const ids = bills.slice(start, idx+1).map(b => b.id);
+  const paidAt = payment?.paidAt ? new Date(payment.paidAt + 'T12:00:00').toISOString() : new Date().toISOString();
+  const { error } = await sb.from('bills').update({
+    paid: true,
+    paid_at: paidAt,
+    payment_mode: payment?.mode || null,
+    payment_remarks: payment?.remarks || null,
+  }).in('id', ids);
+  if (error) { toast('Error: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PERIOD HELPERS  (everything derives from real data — no hardcoded months)
+═══════════════════════════════════════════════════════════ */
+
+// Sorted ascending list of distinct {m,y} present in bills (falls back to rates).
+function getPeriods() {
+  const set = new Set();
+  DB.bills.forEach(b => set.add(b.month + '-' + b.year));
+  DB.rates.forEach(r => set.add(r.month + '-' + r.year));
+  const arr = [...set].map(k => { const [m,y] = k.split('-').map(Number); return { m, y }; });
+  arr.sort((a,b) => a.y !== b.y ? a.y - b.y : a.m - b.m);
+  return arr;
+}
+
+function getYears() {
+  const ys = [...new Set([...DB.bills.map(b=>b.year), ...DB.rates.map(r=>r.year)])].sort((a,b)=>b-a);
+  return ys.length ? ys : [new Date().getFullYear()];
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAV + STATE
+═══════════════════════════════════════════════════════════ */
+
+let currentPage = 'dashboard';
+let currentEntityDetail = null;
+let chartInstances = {};
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const navIdx = ['dashboard','entities','bills','billprint','reports','audit','settings'].indexOf(page);
+  document.querySelectorAll('.nav-btn')[navIdx]?.classList.add('active');
+
+  if (page==='dashboard') renderDashboard();
+  else if (page==='entities') { showEntityList(); }
+  else if (page==='bills') renderBillsPage();
+  else if (page==='billprint') renderBillPrintPage();
+  else if (page==='reports') renderReports();
+  else if (page==='audit') { loadAudit(); loadTrash(); }
+  else if (page==='settings') renderMonthLockList();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MONTH SELECTOR
+═══════════════════════════════════════════════════════════ */
+
+let selectedMonth = new Date().getMonth() + 1;
+let selectedYear  = new Date().getFullYear();
+
+function initMonthSelector() {
+  const sel = document.getElementById('globalMonth');
+  const periods = getPeriods();
+  if (periods.length) {
+    const latest = periods[periods.length - 1];
+    selectedMonth = latest.m; selectedYear = latest.y;
+  }
+  sel.innerHTML = '';
+  (periods.length ? periods : [{ m:selectedMonth, y:selectedYear }])
+    .slice().reverse().forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.m + '-' + o.y;
+      opt.textContent = MONTHS[o.m-1] + ' ' + o.y;
+      if (o.m === selectedMonth && o.y === selectedYear) opt.selected = true;
+      sel.appendChild(opt);
+    });
+}
+
+function onMonthChange() {
+  const [m,y] = document.getElementById('globalMonth').value.split('-').map(Number);
+  selectedMonth = m; selectedYear = y;
+  if (currentPage==='dashboard') renderDashboard();
+  else if (currentPage==='entities' && !currentEntityDetail) renderEntitiesPage();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════════════════ */
+
+function destroyChart(name) {
+  if (chartInstances[name]) { chartInstances[name].destroy(); delete chartInstances[name]; }
+}
+
+function renderDashboard() {
+  renderDashStats();
+  renderDashCharts();
+  renderDashEntities();
+  document.getElementById('month-label-dash').textContent = MONTHS[selectedMonth-1]+' '+selectedYear;
+}
+
+// Building stats use ownCharge so monthly totals never double-count arrears.
+function getDashStatsForMonth(m, y) {
+  let totalBilled=0, collected=0, outstanding=0, totalUnits=0, paidCount=0, unpaidCount=0;
+  DB.entities.forEach(ent => {
+    const b = getBillForMonth(ent.id, m, y);
+    if (!b) return;
+    totalBilled += b.ownCharge;
+    totalUnits  += b.ownUnits;
+    if (b.paid) { collected += b.ownCharge; paidCount++; }
+    else { outstanding += b.ownCharge; unpaidCount++; }
+  });
+  return { totalBilled, collected, outstanding, totalUnits, paidCount, unpaidCount };
+}
+
+function renderDashStats() {
+  const s = getDashStatsForMonth(selectedMonth, selectedYear);
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-accent sa-blue"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+      <div class="stat-lbl">Total entities</div>
+      <div class="stat-val">${DB.entities.length}</div>
+      <div class="stat-sub">${DB.entities.filter(e=>e.type==='flat').length} flats · ${DB.entities.filter(e=>e.type==='shop').length} shops</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-accent sa-purple"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg></div>
+      <div class="stat-lbl">Billed ${MONTHS[selectedMonth-1]}</div>
+      <div class="stat-val">${rs(s.totalBilled)}</div>
+      <div class="stat-sub">${s.paidCount+s.unpaidCount} entries</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-accent sa-green"><svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg></div>
+      <div class="stat-lbl">Collected</div>
+      <div class="stat-val c-green">${rs(s.collected)}</div>
+      <div class="stat-sub">${s.paidCount} paid</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-accent sa-red"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div class="stat-lbl">Outstanding</div>
+      <div class="stat-val c-red">${rs(s.outstanding)}</div>
+      <div class="stat-sub">${s.unpaidCount} unpaid</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-accent sa-amber"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+      <div class="stat-lbl">Total units</div>
+      <div class="stat-val">${s.totalUnits.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+      <div class="stat-sub">${s.totalUnits ? 'Avg Rs '+(s.totalBilled/s.totalUnits).toFixed(2)+'/unit' : 'No bills yet'}</div>
+    </div>
+  `;
+}
+
+function renderDashCharts() {
+  const periods = getPeriods();
+  const monthLabels = periods.map(k => MONTHS[k.m-1] + (periods.some(p=>p.m===k.m&&p.y!==k.y)?(" '"+String(k.y).slice(2)):''));
+  const collected = [], outstanding = [], unitsArr = [];
+  periods.forEach(k => {
+    const s = getDashStatsForMonth(k.m, k.y);
+    collected.push(s.collected); outstanding.push(s.outstanding); unitsArr.push(s.totalUnits);
+  });
+
+  ['billing','donut','units','trend'].forEach(destroyChart);
+  const opts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
+
+  chartInstances.billing = new Chart(document.getElementById('billingChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:monthLabels, datasets:[
+      {label:'Collected',data:collected,backgroundColor:'#0EA5E9',borderRadius:4},
+      {label:'Outstanding',data:outstanding,backgroundColor:'#F09595',borderRadius:4}
+    ]},
+    options:{...opts,scales:{
+      x:{stacked:true,grid:{display:false},ticks:{font:{size:11},color:'#888'}},
+      y:{stacked:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888',callback:v=>'Rs '+Math.round(v/1000)+'k'}}
+    },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+rs(c.raw)}}}}
+  });
+
+  const s = getDashStatsForMonth(selectedMonth, selectedYear);
+  chartInstances.donut = new Chart(document.getElementById('donutChart').getContext('2d'), {
+    type:'doughnut',
+    data:{labels:['Paid','Unpaid'],datasets:[{data:[s.paidCount,s.unpaidCount],backgroundColor:['#0EA5E9','#E24B4A'],borderWidth:0,hoverOffset:4}]},
+    options:{...opts,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.raw}}}}
+  });
+  document.getElementById('donut-sub').textContent = `${s.paidCount} paid, ${s.unpaidCount} unpaid`;
+  document.getElementById('donut-legend').innerHTML = `
+    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>${s.paidCount} Paid</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div>${s.unpaidCount} Unpaid</div>
+  `;
+
+  const entLabels = DB.entities.map(e=>e.name.replace('Flat ','F').replace('Shop ','S'));
+  const entUnits = DB.entities.map(e=>{ const b=getBillForMonth(e.id,selectedMonth,selectedYear); return b?b.ownUnits:0; });
+  const entColors = DB.entities.map(e=>e.type==='shop'?'#7C3AED':'#0EA5E9');
+  chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
+    type:'bar',
+    data:{labels:entLabels,datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
+    options:{...opts,scales:{
+      x:{grid:{display:false},ticks:{font:{size:10},color:'#888'}},
+      y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888'}}
+    },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
+  });
+
+  chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type:'line',
+    data:{labels:monthLabels,datasets:[{label:'Units',data:unitsArr,borderColor:'#0EA5E9',backgroundColor:'rgba(14,165,233,.1)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#0EA5E9',borderWidth:2}]},
+    options:{...opts,scales:{
+      x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}},
+      y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},color:'#888'}}
+    },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
+  });
+}
+
+function renderDashEntities() {
+  const typeFilter = document.getElementById('dash-filter-type').value;
+  const statusFilter = document.getElementById('dash-filter-status').value;
+  const grid = document.getElementById('dash-entity-grid');
+
+  const ents = DB.entities.filter(e => {
+    if (typeFilter && e.type !== typeFilter) return false;
+    const b = getBillForMonth(e.id, selectedMonth, selectedYear);
+    if (statusFilter==='paid' && (!b || !b.paid)) return false;
+    if (statusFilter==='unpaid' && (!b || b.paid)) return false;
+    return true;
+  });
+
+  if (!ents.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><p>No entities match filter</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = ents.map(e => {
+    const b = getBillForMonth(e.id, selectedMonth, selectedYear);
+    const paid = b?.paid ?? false;
+    const arrears = b?.arrears ?? 0;
+    const own = b?.ownCharge ?? 0;
+    const units = b?.ownUnits ?? 0;
+    return `
+      <div class="ecard ${paid?'paid':'unpaid'}" onclick="openEntityDetail(${e.id})">
+        <div class="ecard-top">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="eavatar ${e.type}">${e.id}</div>
+            <div>
+              <div class="ename">${esc(e.name)}</div>
+              <div class="emeta">${esc(e.ownerName || e.type)}</div>
+            </div>
+          </div>
+          <span class="badge ${b ? (paid?'badge-green':'badge-red') : 'badge-gray'}">${b ? (paid?'Paid':'Unpaid') : 'No bill'}</span>
+        </div>
+        <div class="ecard-body">
+          <div class="erow">
+            <span class="erow-lbl">Units used</span>
+            <span class="erow-val">${units} u</span>
+          </div>
+          <div class="erow">
+            <span class="erow-lbl">Charge (${MONTHS[selectedMonth-1]})</span>
+            <span class="erow-val ${paid?'green':'red'}">${rs(own)}</span>
+          </div>
+          ${arrears ? `<div class="erow"><span class="erow-lbl" style="color:var(--amber)">+ arrears</span><span class="erow-val" style="color:var(--amber)">${rs(arrears)}</span></div>
+          <div class="erow"><span class="erow-lbl">Total due</span><span class="erow-val red">${rs(b.totalDue)}</span></div>` : ''}
+        </div>
+        <div class="ecard-foot">
+          ${!paid && b ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();confirmMarkPaid(${e.id},${b.month},${b.year})">
+            <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>Mark paid
+          </button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printBill(${e.id})">
+            <svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print bill
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ═══════════════════════════════════════════════════════════
+   ENTITY DETAIL
+═══════════════════════════════════════════════════════════ */
+
+function openEntityDetail(entityId) {
+  currentEntityDetail = entityId;
+  navigate('entities');
+  showEntityDetail(entityId);
+}
+
+function showEntityList() {
+  currentEntityDetail = null;
+  document.getElementById('entities-list-view').style.display = '';
+  document.getElementById('entity-detail-view').style.display = 'none';
+  renderEntitiesPage();
+}
+
+function showEntityDetail(entityId) {
+  document.getElementById('entities-list-view').style.display = 'none';
+  const detailView = document.getElementById('entity-detail-view');
+  detailView.style.display = '';
+
+  const ent = DB.entities.find(e=>e.id===entityId);
+  if (!ent) { showEntityList(); return; }
+
+  const computed = computeBillAmounts(entityId);
+  const totalBilled    = computed.reduce((s,b)=>s+b.ownCharge,0);
+  const totalCollected = computed.filter(b=>b.paid).reduce((s,b)=>s+b.ownCharge,0);
+  const outstanding    = computed.filter(b=>!b.paid).reduce((s,b)=>s+b.ownCharge,0);
+  const totalUnits     = computed.reduce((s,b)=>s+b.ownUnits,0);
+  const latestReading  = computed.length ? computed[computed.length-1].currReading : 0;
+
+  const billRows = computed.slice().reverse().map(b => {
+    const hasArrears = b.arrearsMonths.length > 0;
+    return `
+      <tr class="${!b.paid && hasArrears ? 'bill-row-chain' : ''}">
+        <td><strong>${MONTHS_FULL[b.month-1]} ${b.year}</strong></td>
+        <td class="tbl-mono tbl-num">${num(b.prevReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+        <td class="tbl-mono tbl-num">${num(b.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+        <td class="tbl-mono tbl-num">${num(b.ownUnits).toFixed(2)}</td>
+        <td class="tbl-mono tbl-num">Rs ${b.rate}</td>
+        <td class="tbl-num"><strong>${rs(b.ownCharge)}</strong>
+          ${!b.paid && hasArrears ? `<div class="bill-breakdown">+ arrears ${rs(b.arrears)} → due ${rs(b.totalDue)}</div>` : ''}
+        </td>
+        <td>
+          <span class="badge ${b.paid?'badge-green':'badge-red'}">
+            ${b.paid ? `<svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>Paid` : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Unpaid`}
+          </span>
+          ${b.paid && b.paymentMode ? `<div class="bill-breakdown">${esc(paymentModeLabel(b.paymentMode))}${b.paidAt?' · '+formatPaidDate(b.paidAt):''}${b.paymentRemarks?'<br>'+esc(b.paymentRemarks):''}</div>` : ''}
+        </td>
+        <td>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${!b.paid ? `<button class="btn btn-primary btn-xs" onclick="confirmMarkPaid(${entityId},${b.month},${b.year})">
+              <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>Mark paid
+            </button>` : ''}
+            <button class="btn btn-ghost btn-xs" title="Print bill" aria-label="Print bill" onclick="printBill(${entityId},${b.month},${b.year})">
+              <svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-xs" title="Edit reading" aria-label="Edit reading" onclick="requestUnlockEdit('bill', ${b.id})">
+              <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-xs" title="Delete reading" aria-label="Delete reading" onclick="confirmDeleteBill(${b.id})">
+              <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  detailView.innerHTML = `
+    <div class="breadcrumb">
+      <a onclick="showEntityList()"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>Entities</a>
+      <svg viewBox="0 0 24 24"><polyline points="9,18 15,12 9,6"/></svg>
+      <span>${esc(ent.name)}</span>
+    </div>
+
+    <div class="detail-hdr">
+      <div style="display:flex;align-items:center">
+        <div class="detail-avatar eavatar ${ent.type}" style="width:48px;height:48px;font-size:14px;margin-right:14px">${ent.id}</div>
+        <div>
+          <div class="detail-name">${esc(ent.name)}</div>
+          <div class="detail-meta">
+            ${ent.ownerName ? `<span><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(ent.ownerName)}</span>` : ''}
+            <span><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Meter: ${esc(ent.meter||'—')}</span>
+            <span><span class="badge badge-gray">${ent.type}</span></span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="requestUnlockEdit('entity', ${ent.id})">
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Edit
+        </button>
+        <button class="btn btn-ghost" onclick="openAddBillForEntity(${ent.id})">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add reading
+        </button>
+        <button class="btn btn-primary" onclick="printBill(${ent.id})">
+          <svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print latest bill
+        </button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">Entity Detail</div>
+          <div class="card-sub">Locked — use the Edit button to change anything</div>
+        </div>
+        <svg class="locked-hdr-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="detail-grid">
+          <div><div class="detail-field-lbl">Entity name</div><div class="detail-field-val">${esc(ent.name)}</div></div>
+          <div><div class="detail-field-lbl">Owner name</div><div class="detail-field-val">${ent.ownerName ? esc(ent.ownerName) : '<span style="color:var(--text3);font-weight:500">N/A</span>'}</div></div>
+          <div><div class="detail-field-lbl">Contact no</div><div class="detail-field-val">${ent.ownerPhone ? esc(ent.ownerPhone) : '<span style="color:var(--text3);font-weight:500">N/A</span>'}</div></div>
+          <div><div class="detail-field-lbl">Meter number</div><div class="detail-field-val" style="font-family:var(--mono)">${esc(ent.meter||'—')}</div></div>
+          <div><div class="detail-field-lbl">Type</div><div class="detail-field-val"><span class="badge badge-gray">${ent.type}</span></div></div>
+          <div><div class="detail-field-lbl">Entity ID</div><div class="detail-field-val" style="font-family:var(--mono)">#${ent.id}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-stats">
+      <div class="stat-card"><div class="stat-lbl">Latest reading</div><div class="stat-val" style="font-family:var(--mono);font-size:20px">${num(latestReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div><div class="stat-sub">units</div></div>
+      <div class="stat-card"><div class="stat-lbl">Total billed</div><div class="stat-val" style="font-size:18px">${rs(totalBilled)}</div><div class="stat-sub">${computed.length} months</div></div>
+      <div class="stat-card"><div class="stat-lbl">Collected</div><div class="stat-val c-green" style="font-size:18px">${rs(totalCollected)}</div><div class="stat-sub">${computed.filter(b=>b.paid).length} paid</div></div>
+      <div class="stat-card"><div class="stat-lbl">Outstanding</div><div class="stat-val c-red" style="font-size:18px">${rs(outstanding)}</div><div class="stat-sub">${computed.filter(b=>!b.paid).length} unpaid</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">Billing history</div>
+          <div class="card-sub">${ent.ownerPhone?esc(ent.ownerPhone):''}</div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Month</th><th class="tbl-num">Prev Reading</th><th class="tbl-num">Curr Reading</th>
+              <th class="tbl-num">Units Used</th><th class="tbl-num">Rate</th>
+              <th class="tbl-num">Charge</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${billRows || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">No bills yet. Add a reading to get started.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ENTITIES PAGE (LIST)
+═══════════════════════════════════════════════════════════ */
+
+function renderEntitiesPage() {
+  const search = document.getElementById('entity-search')?.value.toLowerCase() || '';
+  const typeF = document.getElementById('entity-filter-type')?.value || '';
+
+  const ents = DB.entities.filter(e => {
+    if (typeF && e.type!==typeF) return false;
+    if (search && ![e.name,e.meter,e.ownerName].some(v=>String(v||'').toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('entities-tbl-body');
+  if (!tbody) return;
+  if (!ents.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">No entities found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = ents.map(e => {
+    const b = getBillForMonth(e.id, selectedMonth, selectedYear);
+    const paid = b?.paid ?? null;
+    const charge = b ? b.ownCharge : null;
+    return `
+      <tr class="row-clickable" onclick="openEntityDetail(${e.id})">
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="eavatar ${e.type}" style="width:32px;height:32px;font-size:11px">${e.id}</div>
+            <div><div style="font-weight:600;font-size:13px">${esc(e.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(e.meter||'—')}</div></div>
+          </div>
+        </td>
+        <td>${e.ownerName ? esc(e.ownerName) : '<span style="color:var(--text3)">—</span>'}</td>
+        <td><span class="badge badge-gray">${e.type}</span></td>
+        <td><span style="font-family:var(--mono);font-size:12px">${esc(e.meter||'—')}</span></td>
+        <td class="tbl-num">${charge!==null ? rs(charge) : '<span style="color:var(--text3)">—</span>'}</td>
+        <td>${paid===null ? '<span style="color:var(--text3)">—</span>' : `<span class="badge ${paid?'badge-green':'badge-red'}">${paid?'Paid':'Unpaid'}</span>`}</td>
+        <td>
+          <div style="display:flex;gap:5px" onclick="event.stopPropagation()">
+            <button class="btn btn-ghost btn-xs" onclick="openEntityDetail(${e.id})"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+            <button class="btn btn-ghost btn-xs" title="Print bill" aria-label="Print bill" onclick="printBill(${e.id})"><svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+            <button class="btn btn-ghost btn-xs" title="Edit entity" aria-label="Edit entity" onclick="requestUnlockEdit('entity', ${e.id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="btn btn-ghost btn-xs" title="Delete entity" aria-label="Delete entity" onclick="confirmDeleteEntity(${e.id})"><svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BILLS PAGE
+═══════════════════════════════════════════════════════════ */
+
+function renderBillsPage() {
+  const monthSel = document.getElementById('bills-filter-month');
+  if (monthSel) {
+    const cur = monthSel.value;
+    const periods = getPeriods().slice().reverse();
+    monthSel.innerHTML = '<option value="">All months</option>' +
+      periods.map(p => `<option value="${p.m}-${p.y}"${cur===p.m+'-'+p.y?' selected':''}>${MONTHS_FULL[p.m-1]} ${p.y}</option>`).join('');
+  }
+
+  const search = document.getElementById('bills-search')?.value.toLowerCase() || '';
+  const monthF = document.getElementById('bills-filter-month')?.value || '';
+  const statusF = document.getElementById('bills-filter-status')?.value || '';
+
+  let rows = [];
+  DB.entities.forEach(ent => {
+    computeBillAmounts(ent.id).forEach(b => {
+      if (monthF) { const [fm,fy] = monthF.split('-').map(Number); if (b.month!==fm || b.year!==fy) return; }
+      if (statusF==='paid' && !b.paid) return;
+      if (statusF==='unpaid' && b.paid) return;
+      if (search && ![ent.name,ent.ownerName].some(v=>String(v||'').toLowerCase().includes(search))) return;
+      rows.push({...b, ent});
+    });
+  });
+  rows.sort((a,b) => a.year!==b.year?b.year-a.year:b.month-a.month);
+
+  const tbody = document.getElementById('bills-tbl-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">No bills found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(b => `
+    <tr class="row-clickable" onclick="openEntityDetail(${b.entityId})">
+      <td><div style="font-weight:600">${esc(b.ent.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(b.ent.ownerName||'')}</div></td>
+      <td>${MONTHS[b.month-1]} ${b.year}</td>
+      <td class="tbl-num tbl-mono">${num(b.prevReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+      <td class="tbl-num tbl-mono">${num(b.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+      <td class="tbl-num">${num(b.ownUnits).toFixed(2)}${b.arrearsMonths.length?` <span class="chain-label">+${b.arrearsMonths.length} arrears</span>`:''}</td>
+      <td class="tbl-num">Rs ${b.rate}</td>
+      <td class="tbl-num"><strong>${rs(b.ownCharge)}</strong>${!b.paid&&b.arrears?`<div class="bill-breakdown">due ${rs(b.totalDue)}</div>`:''}</td>
+      <td><span class="badge ${b.paid?'badge-green':'badge-red'}">${b.paid?'Paid':'Unpaid'}</span>${b.paid && b.paymentMode ? `<div class="bill-breakdown">${esc(paymentModeLabel(b.paymentMode))}${b.paidAt?' · '+formatPaidDate(b.paidAt):''}</div>` : ''}</td>
+      <td>
+        <div style="display:flex;gap:5px" onclick="event.stopPropagation()">
+          ${!b.paid ? `<button class="btn btn-primary btn-xs" onclick="confirmMarkPaid(${b.entityId},${b.month},${b.year})"><svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>Pay</button>` : ''}
+          <button class="btn btn-ghost btn-xs" title="Print bill" aria-label="Print bill" onclick="printBill(${b.entityId},${b.month},${b.year})"><svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+          <button class="btn btn-ghost btn-xs" title="Edit reading" aria-label="Edit reading" onclick="requestUnlockEdit('bill', ${b.id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn btn-ghost btn-xs" title="Delete reading" aria-label="Delete reading" onclick="confirmDeleteBill(${b.id})"><svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MONTH LOCK  (freeze a period — type LOCK/UNLOCK to confirm)
+═══════════════════════════════════════════════════════════ */
+
+function renderMonthLockList() {
+  const list = document.getElementById('month-lock-list');
+  if (!list) return;
+  const periods = getPeriods().slice().reverse(); // newest first
+
+  if (!periods.length) {
+    list.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">No billing periods yet.</div>';
+    return;
+  }
+
+  list.innerHTML = periods.map(p => {
+    const locked = isPeriodLocked(p.m, p.y);
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:600;font-size:13px">${MONTHS_FULL[p.m-1]} ${p.y}</span>
+          <span class="badge ${locked ? 'badge-red' : 'badge-green'}">${locked ? 'Locked' : 'Open'}</span>
+        </div>
+        ${locked
+          ? `<button class="btn btn-ghost btn-sm" onclick="requestLockPeriod(${p.m}, ${p.y}, false)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0"/></svg>Unlock</button>`
+          : `<button class="btn btn-danger btn-sm" onclick="requestLockPeriod(${p.m}, ${p.y}, true)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Lock</button>`}
+      </div>
+    `;
+  }).join('');
+}
+
+let lockConfirmWord = 'lock';
+
+function requestLockPeriod(month, year, lock) {
+  lockConfirmWord = lock ? 'lock' : 'unlock';
+  document.getElementById('confirm-lock-title').textContent = lock ? 'Lock period' : 'Unlock period';
+  document.getElementById('confirm-lock-body').innerHTML = lock
+    ? `Lock <strong>${MONTHS_FULL[month-1]} ${year}</strong>? No bill can be added, edited, deleted, restored or marked paid for this period until it's unlocked.`
+    : `Unlock <strong>${MONTHS_FULL[month-1]} ${year}</strong>? Changes will be allowed again for this period.`;
+  document.getElementById('confirm-lock-label').textContent = `Type ${lockConfirmWord.toUpperCase()} to confirm`;
+  const input = document.getElementById('confirm-lock-input');
+  input.value = '';
+  input.placeholder = `Type ${lockConfirmWord.toUpperCase()} to confirm`;
+  const btn = document.getElementById('confirm-lock-btn');
+  btn.textContent = lock ? 'Lock' : 'Unlock';
+  btn.disabled = true;
+  btn.onclick = async () => {
+    if (input.value.trim().toLowerCase() !== lockConfirmWord) return;
+    setBtnLoading('confirm-lock-btn', true, lock ? 'Locking…' : 'Unlocking…');
+    try {
+      if (lock) {
+        const { error } = await sb.from('locked_periods').upsert({ month, year });
+        if (error) { toast('Error: '+error.message, 'error'); return; }
+        logAudit('locked_periods', null, 'update', `Locked ${MONTHS_FULL[month-1]} ${year}`);
+      } else {
+        const { error } = await sb.from('locked_periods').delete().eq('month', month).eq('year', year);
+        if (error) { toast('Error: '+error.message, 'error'); return; }
+        logAudit('locked_periods', null, 'update', `Unlocked ${MONTHS_FULL[month-1]} ${year}`);
+      }
+      closeModal('modal-confirm-lock');
+      await loadAll();
+      renderMonthLockList();
+      toast(lock ? 'Period locked' : 'Period unlocked', 'success');
+    } finally {
+      setBtnLoading('confirm-lock-btn', false);
+    }
+  };
+  openModal('modal-confirm-lock');
+  setTimeout(() => input.focus(), 50);
+}
+
+function onConfirmLockInput() {
+  const val = document.getElementById('confirm-lock-input').value.trim().toLowerCase();
+  document.getElementById('confirm-lock-btn').disabled = val !== lockConfirmWord;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REPORTS PAGE
+═══════════════════════════════════════════════════════════ */
+
+let reportCharts = {};
+
+function renderReports() {
+  const yearSel = document.getElementById('report-year');
+  if (yearSel) {
+    const years = getYears();
+    const cur = yearSel.value || years[0];
+    yearSel.innerHTML = years.map(y=>`<option value="${y}"${String(y)===String(cur)?' selected':''}>${y}</option>`).join('');
+  }
+  const year = parseInt(yearSel?.value || getYears()[0]);
+  const monthKeys = getPeriods().filter(p=>p.y===year).map(p=>p.m);
+
+  let annualBilled=0, annualCollected=0, annualUnits=0;
+  monthKeys.forEach(m => { const s=getDashStatsForMonth(m,year); annualBilled+=s.totalBilled; annualCollected+=s.collected; annualUnits+=s.totalUnits; });
+
+  document.getElementById('report-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-lbl">Annual billed (${year})</div><div class="stat-val">${rs(annualBilled)}</div><div class="stat-sub">${monthKeys.length} months recorded</div></div>
+    <div class="stat-card"><div class="stat-lbl">Annual collected</div><div class="stat-val c-green">${rs(annualCollected)}</div><div class="stat-sub">${annualBilled?Math.round(annualCollected/annualBilled*100):0}% collection rate</div></div>
+    <div class="stat-card"><div class="stat-lbl">Annual outstanding</div><div class="stat-val c-red">${rs(annualBilled-annualCollected)}</div><div class="stat-sub">To be collected</div></div>
+    <div class="stat-card"><div class="stat-lbl">Total units consumed</div><div class="stat-val">${annualUnits.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div><div class="stat-sub">Building-wide</div></div>
+    <div class="stat-card"><div class="stat-lbl">Avg per entity/month</div><div class="stat-val">${DB.entities.length && monthKeys.length ? Math.round(annualUnits/DB.entities.length/monthKeys.length) : 0}</div><div class="stat-sub">units</div></div>
+  `;
+
+  ['annualChart','payRateChart'].forEach(id=>{ if(reportCharts[id]){reportCharts[id].destroy();delete reportCharts[id];} });
+  const chartOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+  const annualCol = monthKeys.map(m=>getDashStatsForMonth(m,year).collected);
+  const annualOut = monthKeys.map(m=>getDashStatsForMonth(m,year).outstanding);
+
+  reportCharts.annualChart = new Chart(document.getElementById('annualChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[
+      {label:'Collected',data:annualCol,backgroundColor:'#0EA5E9',borderRadius:4},
+      {label:'Outstanding',data:annualOut,backgroundColor:'#F09595',borderRadius:4}
+    ]},
+    options:{...chartOpts,scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10},color:'#888'}},y:{stacked:true,grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:9},color:'#888',callback:v=>'Rs '+Math.round(v/1000)+'k'}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+rs(c.raw)}}}}
+  });
+
+  const payRates = monthKeys.map(m=>{const s=getDashStatsForMonth(m,year);return s.paidCount+s.unpaidCount?Math.round(s.paidCount/(s.paidCount+s.unpaidCount)*100):0;});
+  reportCharts.payRateChart = new Chart(document.getElementById('payRateChart').getContext('2d'),{
+    type:'line',
+    data:{labels:monthKeys.map(m=>MONTHS[m-1]),datasets:[{label:'Payment rate %',data:payRates,borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,.1)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#2563EB',borderWidth:2}]},
+    options:{...chartOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#888'}},y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:9},color:'#888',callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'%'}}}}
+  });
+
+  document.getElementById('report-entity-body').innerHTML = DB.entities.map(ent => {
+    const computed = computeBillAmounts(ent.id).filter(b=>b.year===year);
+    const billed = computed.reduce((s,b)=>s+b.ownCharge,0);
+    const collected = computed.filter(b=>b.paid).reduce((s,b)=>s+b.ownCharge,0);
+    const outstanding = billed - collected;
+    const units = computed.reduce((s,b)=>s+b.ownUnits,0);
+    const rate = billed ? Math.round(collected/billed*100) : 0;
+    return `
+      <tr class="row-clickable" onclick="openEntityDetail(${ent.id})">
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="eavatar ${ent.type}" style="width:28px;height:28px;font-size:10px">${ent.id}</div><div><div style="font-weight:600">${esc(ent.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(ent.ownerName||'')}</div></div></div></td>
+        <td><span class="badge badge-gray">${ent.type}</span></td>
+        <td class="tbl-num">${rs(billed)}</td>
+        <td class="tbl-num" style="color:var(--green-dk)">${rs(collected)}</td>
+        <td class="tbl-num" style="color:${outstanding?'var(--red-dk)':'var(--text3)'}">${rs(outstanding)}</td>
+        <td class="tbl-num">${units.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;background:var(--surface2);border-radius:99px;height:6px"><div style="width:${rate}%;background:${rate>80?'var(--green)':rate>50?'var(--amber)':'var(--red)'};height:6px;border-radius:99px"></div></div><span style="font-size:11px;font-weight:600;color:var(--text2);width:30px;text-align:right">${rate}%</span></div></td>
+        <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="printBill(${ent.id})"><svg viewBox="0 0 24 24"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Bill</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">No entities</td></tr>';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════════════════════ */
+
+function localDateInputValue(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function loadAudit() {
+  const list = document.getElementById('audit-list');
+  if (!list) return;
+
+  const dateInput = document.getElementById('audit-date');
+  if (dateInput && !dateInput.value) dateInput.value = localDateInputValue(new Date());
+  const [y, m, d] = (dateInput?.value || localDateInputValue(new Date())).split('-').map(Number);
+  const dayStart = new Date(y, m-1, d, 0, 0, 0, 0);
+  const dayEnd = new Date(y, m-1, d+1, 0, 0, 0, 0);
+  const isToday = localDateInputValue(new Date()) === localDateInputValue(dayStart);
+
+  list.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">Loading…</div>';
+
+  const { data, error } = await sb.from('audit_log').select('*').gte('created_at', dayStart.toISOString()).lt('created_at', dayEnd.toISOString()).order('created_at', { ascending: false });
+  if (error) { list.innerHTML = '<div style="padding:16px 0;color:var(--red-dk);font-size:12.5px">Failed to load change history.</div>'; return; }
+
+  if (!data || !data.length) {
+    list.innerHTML = `<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">No changes recorded ${isToday ? 'today' : 'on this date'}.</div>`;
+    return;
+  }
+
+  const actionBadge = { create:'badge-green', update:'badge-blue', delete:'badge-red', restore:'badge-amber' };
+  list.innerHTML = data.map(row => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge ${actionBadge[row.action]||'badge-gray'}">${esc(row.action)}</span>
+        <span style="font-size:12.5px">${esc(row.summary)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:12px">${new Date(row.created_at).toLocaleTimeString('en-PK', { hour:'numeric', minute:'2-digit' })}</div>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRASH  (soft-deleted entities & bills — restorable, never erased)
+═══════════════════════════════════════════════════════════ */
+
+const fmtDeletedAt = ts => ts ? new Date(ts).toLocaleString('en-PK', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' }) : '';
+
+async function loadTrash() {
+  const list = document.getElementById('trash-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">Loading…</div>';
+
+  const [entRes, billRes] = await Promise.all([
+    sb.from('entities').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+    sb.from('bills').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+  ]);
+  if (entRes.error || billRes.error) { list.innerHTML = '<div style="padding:16px 0;color:var(--red-dk);font-size:12.5px">Failed to load trash.</div>'; return; }
+
+  const trashedEntities = entRes.data || [];
+  const trashedBills = billRes.data || [];
+  const entityName = id => DB.entities.find(e => e.id === id)?.name
+    || trashedEntities.find(e => e.id === id)?.name
+    || `Entity #${id}`;
+
+  if (!trashedEntities.length && !trashedBills.length) {
+    list.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">Nothing in the trash.</div>';
+    return;
+  }
+
+  const entityRows = trashedEntities.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:600;font-size:13px">${esc(e.name)} <span class="badge badge-gray" style="margin-left:4px">entity</span></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Deleted ${fmtDeletedAt(e.deleted_at)}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="restoreEntity(${e.id})"><svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Restore</button>
+    </div>
+  `).join('');
+
+  const billRows = trashedBills.map(b => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:600;font-size:13px">${esc(entityName(b.entity_id))} — ${MONTHS_FULL[b.month-1]} ${b.year} <span class="badge badge-gray" style="margin-left:4px">bill</span></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Deleted ${fmtDeletedAt(b.deleted_at)}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="restoreBill(${b.id}, ${b.month}, ${b.year})"><svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Restore</button>
+    </div>
+  `).join('');
+
+  list.innerHTML = entityRows + billRows;
+}
+
+async function restoreEntity(id) {
+  const { error } = await sb.from('entities').update({ deleted_at: null }).eq('id', id);
+  if (error) { toast('Error: '+error.message, 'error'); return; }
+  await loadAll();
+  initMonthSelector();
+  logAudit('entities', id, 'restore', `Restored entity "${DB.entities.find(e=>e.id===id)?.name}"`);
+  await loadTrash();
+  toast('Entity restored', 'success');
+}
+
+async function restoreBill(id, month, year) {
+  if (isPeriodLocked(month, year)) { toast(`${MONTHS_FULL[month-1]} ${year} is locked — unlock it in Settings to make changes`, 'error'); return; }
+  const { error } = await sb.from('bills').update({ deleted_at: null }).eq('id', id);
+  if (error) { toast('Error: '+error.message, 'error'); return; }
+  await loadAll();
+  initMonthSelector();
+  const b = DB.bills.find(x=>x.id===id);
+  const entName = DB.entities.find(e=>e.id===b?.entityId)?.name;
+  logAudit('bills', id, 'restore', `Restored ${MONTHS_FULL[b?.month-1]} ${b?.year} bill for "${entName}"`);
+  await loadTrash();
+  toast('Bill restored', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ENTITY MODAL
+═══════════════════════════════════════════════════════════ */
+
+function openAddEntity() {
+  document.getElementById('modal-entity-title').textContent = 'Add entity';
+  document.getElementById('entity-edit-id').value = '';
+  document.getElementById('ef-name').value = '';
+  document.getElementById('ef-type').value = 'flat';
+  document.getElementById('ef-owner').value = '';
+  document.getElementById('ef-owner-phone').value = '';
+  document.getElementById('ef-meter').value = '';
+  document.getElementById('ef-init-reading').value = 0;
+  openModal('modal-entity');
+}
+
+/* ── locked-record unlock flow: every edit action in the app must be
+   confirmed by typing "EDIT" first, no exceptions ────────────────── */
+let unlockEditTarget = null; // { type: 'entity'|'bill'|'rate', id }
+
+function requestUnlockEdit(type, id) {
+  unlockEditTarget = { type, id };
+  const inp = document.getElementById('unlock-edit-input');
+  inp.value = '';
+  document.getElementById('unlock-edit-btn').disabled = true;
+  openModal('modal-confirm-edit');
+  setTimeout(() => inp.focus(), 50);
+}
+
+function onUnlockEditInput() {
+  const val = document.getElementById('unlock-edit-input').value.trim().toLowerCase();
+  document.getElementById('unlock-edit-btn').disabled = val !== 'edit';
+}
+
+function submitUnlockEdit() {
+  const val = document.getElementById('unlock-edit-input').value.trim().toLowerCase();
+  if (val !== 'edit' || !unlockEditTarget) return;
+  const { type, id } = unlockEditTarget;
+  closeModal('modal-confirm-edit');
+  unlockEditTarget = null;
+  if (type === 'entity') openEditEntity(id);
+  else if (type === 'bill') openEditBill(id);
+}
+
+function openEditEntity(id) {
+  const ent = DB.entities.find(e=>e.id===id);
+  if (!ent) return;
+  document.getElementById('modal-entity-title').textContent = 'Edit entity';
+  document.getElementById('entity-edit-id').value = id;
+  document.getElementById('ef-name').value = ent.name;
+  document.getElementById('ef-type').value = ent.type;
+  document.getElementById('ef-owner').value = ent.ownerName;
+  document.getElementById('ef-owner-phone').value = ent.ownerPhone;
+  document.getElementById('ef-meter').value = ent.meter;
+  document.getElementById('ef-init-reading').value = '';
+  openModal('modal-entity');
+}
+
+async function saveEntity() {
+  const name = document.getElementById('ef-name').value.trim();
+  if (!name) { toast('Entity name is required', 'error'); return; }
+  const editId = document.getElementById('entity-edit-id').value;
+  const payload = {
+    name,
+    type: document.getElementById('ef-type').value,
+    owner_name: document.getElementById('ef-owner').value.trim(),
+    owner_phone: document.getElementById('ef-owner-phone').value.trim(),
+    meter: document.getElementById('ef-meter').value.trim(),
+  };
+  const initReading = num(document.getElementById('ef-init-reading').value);
+
+  setBtnLoading('btn-save-entity', true, 'Saving…');
+  try {
+    if (editId) {
+      const { error } = await sb.from('entities').update(payload).eq('id', parseInt(editId));
+      if (error) { toast('Error: '+error.message, 'error'); return; }
+      logAudit('entities', parseInt(editId), 'update', `Updated entity "${name}"`);
+      toast('Entity updated', 'success');
+    } else {
+      const { data, error } = await sb.from('entities').insert(payload).select().single();
+      if (error) { toast('Error: '+error.message, 'error'); return; }
+      // Optional opening reading: seed an initial bill row so the first real reading has a "previous".
+      if (initReading > 0 && data) {
+        const now = new Date();
+        const rate = DB.settings.currentRate;
+        await sb.from('bills').insert({ entity_id:data.id, month:now.getMonth()+1, year:now.getFullYear(), prev_reading:initReading, curr_reading:initReading, units_used:0, rate, paid:true, paid_at:now.toISOString() });
+      }
+      logAudit('entities', data?.id, 'create', `Added entity "${name}"`);
+      toast('Entity added', 'success');
+    }
+    closeModal('modal-entity');
+    await loadAll();
+    initMonthSelector();
+    rerenderCurrent();
+  } finally {
+    setBtnLoading('btn-save-entity', false);
+  }
+}
+
+function confirmDeleteEntity(id) {
+  const ent = DB.entities.find(e=>e.id===id);
+  document.getElementById('confirm-delete-body').innerHTML = `Delete <strong>${esc(ent?.name)}</strong>? It will disappear from the app along with its bill history, but nothing is permanently erased — it can be restored later.`;
+  document.getElementById('confirm-delete-btn').textContent = 'Delete entity';
+  document.getElementById('confirm-delete-btn').onclick = async () => {
+    setBtnLoading('confirm-delete-btn', true, 'Deleting…');
+    try {
+      // Soft delete: mark hidden, never actually erase the row.
+      const { error } = await sb.from('entities').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (error) { toast('Error: '+error.message, 'error'); return; }
+      logAudit('entities', id, 'delete', `Deleted entity "${ent?.name}"`);
+      closeModal('modal-confirm-delete');
+      await loadAll();
+      showEntityList();
+      toast('Entity deleted', 'success');
+    } finally {
+      setBtnLoading('confirm-delete-btn', false);
+    }
+  };
+  openModal('modal-confirm-delete');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BILL MODAL
+═══════════════════════════════════════════════════════════ */
+
+/* ── bill photo upload state + helpers ─────────────────────── */
+let billImageFile = null;        // newly picked File (null if none)
+let billImageExistingUrl = '';   // url already saved on the bill (edit mode)
+let billImageRemoved = false;    // user cleared an existing photo
+
+function resetBillImage() {
+  billImageFile = null; billImageExistingUrl = ''; billImageRemoved = false;
+  const inp = document.getElementById('bf-image'); if (inp) inp.value = '';
+  document.getElementById('bf-image-preview').style.display = 'none';
+  document.getElementById('bf-image-thumb').removeAttribute('src');
+}
+
+function showBillImage(src) {
+  document.getElementById('bf-image-thumb').src = src;
+  document.getElementById('bf-image-preview').style.display = 'block';
+}
+
+function onBillImagePick(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  setBillImageFile(file);
+}
+
+// Shared entry point for file input, drag-drop, and clipboard paste.
+function setBillImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) { toast('Please provide an image file', 'error'); return; }
+  if (file.size > 8 * 1024 * 1024) { toast('Image too large (max 8 MB)', 'error'); return; }
+  billImageFile = file; billImageRemoved = false;
+  document.getElementById('bf-image').value = '';
+  showBillImage(URL.createObjectURL(file));
+}
+
+function onBillImageDragOver(event) {
+  event.preventDefault();
+  event.currentTarget.style.borderColor = 'var(--primary, #4f7cff)';
+  event.currentTarget.style.background = 'var(--surface-hover, rgba(79,124,255,.06))';
+}
+
+function onBillImageDragLeave(event) {
+  event.currentTarget.style.borderColor = 'var(--border)';
+  event.currentTarget.style.background = '';
+}
+
+function onBillImageDrop(event) {
+  event.preventDefault();
+  event.currentTarget.style.borderColor = 'var(--border)';
+  event.currentTarget.style.background = '';
+  const file = event.dataTransfer.files && event.dataTransfer.files[0];
+  if (file) setBillImageFile(file);
+}
+
+// Paste a screenshot/image from the clipboard while the bill modal is open.
+document.addEventListener('paste', (event) => {
+  const modal = document.getElementById('modal-bill');
+  if (!modal || !modal.classList.contains('open')) return;
+  const items = event.clipboardData && event.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) { setBillImageFile(file); event.preventDefault(); }
+      break;
+    }
+  }
+});
+
+function clearBillImage() {
+  billImageFile = null; billImageRemoved = true;
+  document.getElementById('bf-image').value = '';
+  document.getElementById('bf-image-preview').style.display = 'none';
+  document.getElementById('bf-image-thumb').removeAttribute('src');
+}
+
+// Uploads the picked file (if any) and returns the final image URL to store.
+async function resolveBillImageUrl(entityId, month, year) {
+  if (billImageFile) {
+    const ext = (billImageFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+    const path = `${entityId}/${year}-${String(month).padStart(2,'0')}-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('bill-images').upload(path, billImageFile, { upsert: true, contentType: billImageFile.type });
+    if (error) { toast('Image upload failed: ' + error.message, 'error'); throw error; }
+    return sb.storage.from('bill-images').getPublicUrl(path).data.publicUrl;
+  }
+  if (billImageRemoved) return '';
+  return billImageExistingUrl;
+}
+
+function openAddBill() {
+  const currentRate = DB.settings.currentRate;
+  document.getElementById('modal-bill-title').textContent = 'Add meter reading';
+  document.getElementById('bill-edit-id').value = '';
+  const sel = document.getElementById('bf-entity');
+  sel.innerHTML = '<option value="">Select entity…</option>' + DB.entities.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+  document.getElementById('bf-month').value = selectedMonth;
+  document.getElementById('bf-year').value = selectedYear;
+  document.getElementById('bf-prev').value = '';
+  document.getElementById('bf-curr').value = '';
+  document.getElementById('bf-rate').value = currentRate;
+  document.getElementById('bill-preview').style.display = 'none';
+  resetBillImage();
+  openModal('modal-bill');
+}
+
+function openAddBillForEntity(entityId) {
+  openAddBill();
+  document.getElementById('bf-entity').value = entityId;
+  onBillEntityChange();
+}
+
+function openEditBill(id) {
+  const bill = DB.bills.find(b=>b.id===id);
+  if (!bill) return;
+  document.getElementById('modal-bill-title').textContent = 'Edit reading';
+  document.getElementById('bill-edit-id').value = id;
+  const sel = document.getElementById('bf-entity');
+  sel.innerHTML = DB.entities.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+  sel.value = bill.entityId;
+  document.getElementById('bf-month').value = bill.month;
+  document.getElementById('bf-year').value = bill.year;
+  document.getElementById('bf-prev').value = bill.prevReading;
+  document.getElementById('bf-curr').value = bill.currReading;
+  document.getElementById('bf-rate').value = bill.rate;
+  resetBillImage();
+  if (bill.imageUrl) { billImageExistingUrl = bill.imageUrl; showBillImage(bill.imageUrl); }
+  calcBillPreview();
+  openModal('modal-bill');
+}
+
+function onBillEntityChange() {
+  const entityId = parseInt(document.getElementById('bf-entity').value);
+  const month = parseInt(document.getElementById('bf-month').value);
+  const year = parseInt(document.getElementById('bf-year').value);
+  if (!entityId) { document.getElementById('bf-prev').value=''; return; }
+
+  const ent = DB.entities.find(e=>e.id===entityId);
+
+  const bills = getEntityBills(entityId);
+  const prevBill = [...bills].reverse().find(b => b.year < year || (b.year===year && b.month < month));
+  document.getElementById('bf-prev').value = prevBill ? prevBill.currReading : 0;
+
+  const rate = prevBill?.rate || DB.settings.currentRate;
+  document.getElementById('bf-rate').value = rate;
+  calcBillPreview();
+}
+
+function calcBillPreview() {
+  const entityId = parseInt(document.getElementById('bf-entity').value);
+  const curr = num(document.getElementById('bf-curr').value);
+  const prev = num(document.getElementById('bf-prev').value);
+  const rate = num(document.getElementById('bf-rate').value);
+  const month = parseInt(document.getElementById('bf-month').value);
+  const year = parseInt(document.getElementById('bf-year').value);
+  const editId = document.getElementById('bill-edit-id').value;
+
+  const preview = document.getElementById('bill-preview');
+  if (!entityId || curr < prev) { preview.style.display='none'; return; }
+
+  const ownUnits = round2(curr - prev);
+  const ownCharge = round2(ownUnits * rate);
+
+  // arrears = consecutive unpaid months before this period (excluding the one being edited)
+  const existing = getEntityBills(entityId).filter(b => !(b.month===month && b.year===year) && b.id !== parseInt(editId||-1));
+  let arrears = 0, arrearsMonths = [];
+  for (let i = existing.length-1; i>=0; i--) {
+    if (existing[i].year > year || (existing[i].year===year && existing[i].month > month)) continue; // only look backwards
+    if (existing[i].paid) break;
+    const u = Math.max(0, num(existing[i].currReading)-num(existing[i].prevReading));
+    arrears = round2(arrears + u*num(existing[i].rate));
+    arrearsMonths.unshift(MONTHS[existing[i].month-1]+' '+existing[i].year);
+  }
+  const totalDue = round2(ownCharge + arrears);
+
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    Units this month: <strong>${ownUnits}</strong> × Rs ${rate} = <strong>${rs(ownCharge)}</strong><br>
+    ${arrears ? `Arrears (${arrearsMonths.join(', ')}): <strong>${rs(arrears)}</strong><br>` : ''}
+    Total payable now: <strong style="color:var(--text);font-size:13px">${rs(totalDue)}</strong>
+  `;
+}
+
+async function saveBill() {
+  const entityId = parseInt(document.getElementById('bf-entity').value);
+  const month = parseInt(document.getElementById('bf-month').value);
+  const year = parseInt(document.getElementById('bf-year').value);
+  const curr = num(document.getElementById('bf-curr').value);
+  const prev = num(document.getElementById('bf-prev').value);
+  const rate = num(document.getElementById('bf-rate').value);
+
+  if (!entityId) { toast('Select an entity', 'error'); return; }
+  if (document.getElementById('bf-curr').value === '' || curr < prev) { toast('Current reading must be ≥ previous reading', 'error'); return; }
+  if (!rate) { toast('Rate is required', 'error'); return; }
+  if (isPeriodLocked(month, year)) { toast(`${MONTHS_FULL[month-1]} ${year} is locked — unlock it in Settings to make changes`, 'error'); return; }
+
+  const editId = document.getElementById('bill-edit-id').value;
+
+  setBtnLoading('btn-save-bill', true, 'Saving…');
+  try {
+    let imageUrl;
+    try { imageUrl = await resolveBillImageUrl(entityId, month, year); }
+    catch { return; }   // upload error already toasted
+
+    const payload = { entity_id:entityId, month, year, prev_reading:prev, curr_reading:curr, units_used:round2(curr-prev), rate, bill_image_url:imageUrl };
+
+    const entName = DB.entities.find(e=>e.id===entityId)?.name || `Entity #${entityId}`;
+    if (editId) {
+      const { error } = await sb.from('bills').update(payload).eq('id', parseInt(editId));
+      if (error) { toast(error.code==='23505'?'A bill already exists for that entity/month':'Error: '+error.message, 'error'); return; }
+      logAudit('bills', parseInt(editId), 'update', `Updated ${MONTHS_FULL[month-1]} ${year} reading for "${entName}"`);
+      toast('Reading updated', 'success');
+    } else {
+      const { data, error } = await sb.from('bills').insert({ ...payload, paid:false }).select().single();
+      if (error) { toast(error.code==='23505'?'A bill already exists for this month':'Error: '+error.message, 'error'); return; }
+      logAudit('bills', data?.id, 'create', `Added ${MONTHS_FULL[month-1]} ${year} reading for "${entName}"`);
+      toast('Reading added', 'success');
+    }
+    closeModal('modal-bill');
+    await loadAll();
+    initMonthSelector();
+    rerenderCurrent();
+  } finally {
+    setBtnLoading('btn-save-bill', false);
+  }
+}
+
+function confirmDeleteBill(id) {
+  const bill = DB.bills.find(b=>b.id===id);
+  const ent = DB.entities.find(e=>e.id===bill?.entityId);
+  if (bill && isPeriodLocked(bill.month, bill.year)) { toast(`${MONTHS_FULL[bill.month-1]} ${bill.year} is locked — unlock it in Settings to make changes`, 'error'); return; }
+  document.getElementById('confirm-delete-body').innerHTML = `Delete the <strong>${MONTHS_FULL[bill?.month-1]} ${bill?.year}</strong> bill for <strong>${esc(ent?.name)}</strong>? Nothing is permanently erased — it can be restored later.`;
+  document.getElementById('confirm-delete-btn').textContent = 'Delete bill';
+  document.getElementById('confirm-delete-btn').onclick = async () => {
+    setBtnLoading('confirm-delete-btn', true, 'Deleting…');
+    try {
+      // Soft delete: mark hidden, never actually erase the row.
+      const { error } = await sb.from('bills').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (error) { toast('Error: '+error.message, 'error'); return; }
+      logAudit('bills', id, 'delete', `Deleted ${MONTHS_FULL[bill?.month-1]} ${bill?.year} bill for "${ent?.name}"`);
+      closeModal('modal-confirm-delete');
+      await loadAll();
+      rerenderCurrent();
+      toast('Bill deleted', 'success');
+    } finally {
+      setBtnLoading('confirm-delete-btn', false);
+    }
+  };
+  openModal('modal-confirm-delete');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MARK PAID
+═══════════════════════════════════════════════════════════ */
+
+function confirmMarkPaid(entityId, month, year) {
+  if (isPeriodLocked(month, year)) { toast(`${MONTHS_FULL[month-1]} ${year} is locked — unlock it in Settings to make changes`, 'error'); return; }
+  const ent = DB.entities.find(e=>e.id===entityId);
+  const info = getChainInfo(entityId, month, year);
+  const allMonths = [...info.months.map(m=>MONTHS_FULL[m.month-1]+' '+m.year), MONTHS_FULL[month-1]+' '+year];
+
+  let bodyHtml = `<div>Mark <strong>${esc(ent?.name)}</strong> paid for <strong>${MONTHS_FULL[month-1]} ${year}</strong>.</div>`;
+  if (info.months.length) {
+    bodyHtml += `<br><div style="background:var(--amber-bg);border-radius:var(--radius);padding:10px 12px;margin-top:8px;font-size:12px;color:var(--amber)"><strong>This also clears arrears:</strong> ${info.months.map(m=>MONTHS_FULL[m.month-1]+' '+m.year).join(', ')} — unpaid months are paid together.</div>`;
+  }
+  bodyHtml += `<br><div style="font-size:12px;color:var(--text2)">Total: <strong style="color:var(--text)">${rs(info.totalDue)}</strong></div>`;
+
+  document.getElementById('confirm-pay-body').innerHTML = bodyHtml;
+  document.getElementById('pay-mode').value = 'cash';
+  document.getElementById('pay-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pay-remarks').value = '';
+  const input = document.getElementById('confirm-pay-input');
+  input.value = '';
+  document.getElementById('confirm-pay-btn').disabled = true;
+  document.getElementById('confirm-pay-btn').onclick = async () => {
+    if (input.value.trim().toLowerCase() !== 'paid') return;
+    const payment = {
+      mode: document.getElementById('pay-mode').value,
+      paidAt: document.getElementById('pay-date').value,
+      remarks: document.getElementById('pay-remarks').value.trim(),
+    };
+    setBtnLoading('confirm-pay-btn', true, 'Marking…');
+    try {
+      const ok = await markPaidUpTo(entityId, month, year, payment);
+      if (!ok) return;   // error already toasted by markPaidUpTo
+      logAudit('bills', entityId, 'update', `Marked "${ent?.name}" paid for ${allMonths.join(', ')} via ${paymentModeLabel(payment.mode)}${payment.remarks ? ' — '+payment.remarks : ''}`);
+      closeModal('modal-confirm-pay');
+      await loadAll();
+      rerenderCurrent();
+      toast(`${allMonths.join(', ')} marked paid`, 'success');
+    } finally {
+      setBtnLoading('confirm-pay-btn', false);
+    }
+  };
+  openModal('modal-confirm-pay');
+  setTimeout(() => input.focus(), 50);
+}
+
+function onConfirmPayInput() {
+  const val = document.getElementById('confirm-pay-input').value.trim().toLowerCase();
+  document.getElementById('confirm-pay-btn').disabled = val !== 'paid';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINTABLE BILL  (replaces the old Excel/CSV export)
+═══════════════════════════════════════════════════════════ */
+
+function printBill(entityId, month, year) {
+  const ent = DB.entities.find(e=>e.id===entityId);
+  if (!ent) return;
+  const computed = computeBillAmounts(entityId);
+  if (!computed.length) { toast('No bills to print for this entity', 'error'); return; }
+
+  const bill = (month && year)
+    ? computed.find(b=>b.month===month && b.year===year)
+    : computed[computed.length-1];   // latest bill
+  if (!bill) { toast('Bill not found', 'error'); return; }
+
+  const s = DB.settings;
+  const period = MONTHS_FULL[bill.month-1] + ' ' + bill.year;
+  const billNo = `${ent.id}-${bill.year}${String(bill.month).padStart(2,'0')}`;
+  const today = new Date().toLocaleDateString('en-PK', { day:'numeric', month:'long', year:'numeric' });
+  const elec = bill.ownUnits * bill.rate;
+
+  const arrearsRows = bill.arrearsMonths.map(m =>
+    `<tr><td>Arrears — ${MONTHS_FULL[m.month-1]} ${m.year}</td><td class="r">${rs(m.charge)}</td></tr>`).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  <title>Bill ${billNo} — ${esc(ent.name)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1917;background:#f3f3f0;padding:24px;font-size:13px}
+    .sheet{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e0ded9;border-radius:10px;padding:32px 36px}
+    .mk-heading{text-align:center;font-size:26px;font-weight:800;letter-spacing:.08em;color:#0369A1;margin-bottom:18px;text-transform:uppercase}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0EA5E9;padding-bottom:18px;margin-bottom:20px}
+    .bld-name{font-size:22px;font-weight:700}
+    .bld-meta{font-size:12px;color:#666;margin-top:4px;line-height:1.6}
+    .title{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0EA5E9;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}
+    .box{border:1px solid #e8e6e1;border-radius:8px;padding:14px 16px}
+    .box h4{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px}
+    .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
+    .kv span:first-child{color:#666}
+    .kv span:last-child{font-weight:600;text-align:right}
+    table{width:100%;border-collapse:collapse;margin-bottom:6px}
+    th,td{text-align:left;padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5}
+    th{background:#f6f5f2;text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#888}
+    td.r,th.r{text-align:right}
+    .total{display:flex;justify-content:space-between;align-items:center;background:#E0F2FE;border:1px solid #bae6fd;border-radius:8px;padding:16px 20px;margin-top:14px}
+    .total .lbl{font-size:13px;font-weight:600;color:#0369A1}
+    .total .amt{font-size:26px;font-weight:800;color:#0369A1}
+    .status{display:inline-block;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700}
+    .paid{background:#E0F2FE;color:#0369A1}
+    .unpaid{background:#FDECEA;color:#991F2A}
+    .foot{margin-top:26px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eceae5;padding-top:14px;line-height:1.7}
+    .actions{max-width:760px;margin:18px auto 0;text-align:center}
+    .actions button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:10px 22px;font-weight:600;font-size:13px}
+    .pbtn{background:#0EA5E9;color:#fff;margin-right:8px}
+    .cbtn{background:#e8e6e1;color:#333}
+    @media print{ body{background:#fff;padding:0} .sheet{border:none;border-radius:0;max-width:none} .actions{display:none} }
+  </style></head><body>
+    <div class="sheet">
+      <div class="mk-heading">MK Rose</div>
+
+      <div class="top">
+        <div>
+          <div class="bld-name">${esc(s.buildingName || 'Electricity Bill')}</div>
+          <div class="bld-meta">${esc(s.address||'')}${s.contact?'<br>'+esc(s.contact):''}</div>
+        </div>
+      </div>
+
+      <div class="title">Electricity Bill — ${esc(period)}</div>
+
+      <div class="grid">
+        <div class="box">
+          <h4>Bill To</h4>
+          <div class="kv"><span>Name of Tenant</span><span>${esc(ent.ownerName||'—')}</span></div>
+          <div class="kv"><span>${ent.type==='shop'?'Shop:':'Flat:'}</span><span>${esc(ent.name)}</span></div>
+          <div class="kv"><span>Meter No.</span><span>${esc(ent.meter||'—')}</span></div>
+          ${ent.ownerPhone?`<div class="kv"><span>Phone</span><span>${esc(ent.ownerPhone)}</span></div>`:''}
+        </div>
+        <div class="box">
+          <h4>Bill Details</h4>
+          <div class="kv"><span>Bill No.</span><span>${billNo}</span></div>
+          <div class="kv"><span>Billing month</span><span>${esc(period)}</span></div>
+          <div class="kv"><span>Issue date</span><span>${today}</span></div>
+          <div class="kv"><span>Status</span><span><span class="status ${bill.paid?'paid':'unpaid'}">${bill.paid?'PAID':'UNPAID'}</span></span></div>
+          ${bill.paid && bill.paymentMode ? `<div class="kv"><span>Paid via</span><span>${esc(paymentModeLabel(bill.paymentMode))}${bill.paidAt?' on '+formatPaidDate(bill.paidAt):''}</span></div>` : ''}
+          ${bill.paid && bill.paymentRemarks ? `<div class="kv"><span>Remarks</span><span>${esc(bill.paymentRemarks)}</span></div>` : ''}
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>Description</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Previous reading</td><td class="r">${num(bill.prevReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+          <tr><td>Current reading</td><td class="r">${num(bill.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+          <tr><td>Units consumed</td><td class="r">${bill.ownUnits} units</td></tr>
+          <tr><td>Electricity (${bill.ownUnits} × Rs ${bill.rate})</td><td class="r">${rs(elec)}</td></tr>
+          <tr><td><strong>This month's charge</strong></td><td class="r"><strong>${rs(bill.ownCharge)}</strong></td></tr>
+          ${arrearsRows}
+        </tbody>
+      </table>
+
+      <div class="total">
+        <div class="lbl">${bill.paid ? 'Amount paid' : 'Total payable'}</div>
+        <div class="amt">${rs(bill.totalDue)}</div>
+      </div>
+
+      ${bill.imageUrl ? `<div style="margin-top:20px">
+        <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
+        <img src="${esc(bill.imageUrl)}" alt="meter photo" style="max-width:90%;max-height:324px;border:1px solid #e8e6e1;border-radius:8px"/>
+      </div>` : ''}
+
+      <div class="foot">
+        This is a computer-generated bill${s.contact?` · For queries: ${esc(s.contact)}`:''}.<br>
+        ${bill.arrearsMonths.length?'Total payable includes unpaid arrears from previous month(s).':'Please pay before the due date to avoid arrears.'}
+      </div>
+    </div>
+    <div class="actions">
+      <button class="pbtn" onclick="window.print()">Print / Save PDF</button>
+      <button class="cbtn" onclick="window.close()">Close</button>
+    </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('Please allow pop-ups to print the bill', 'error'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BILL PRINT PAGE  (real PDF export — single + bulk ZIP)
+
+   PDFs are rasterized from the same bill layout used by printBill(),
+   rendered off-screen and captured with html2canvas → jsPDF. Meter/bill
+   photos live in Supabase Storage, so each bill with a photo requires a
+   real network fetch before it can be rasterized — the progress modal
+   tracks that fetch + render per bill rather than faking a timer.
+═══════════════════════════════════════════════════════════ */
+
+function renderBillPrintPage() {
+  const sel = document.getElementById('bp-month');
+  if (sel) {
+    const cur = sel.value;
+    const periods = getPeriods().slice().reverse();
+    sel.innerHTML = periods.map(p => `<option value="${p.m}-${p.y}"${cur===p.m+'-'+p.y?' selected':''}>${MONTHS_FULL[p.m-1]} ${p.y}</option>`).join('');
+    if (!sel.value && periods.length) sel.value = periods[0].m + '-' + periods[0].y;
+  }
+
+  const [m, y] = (sel?.value || '').split('-').map(Number);
+  const tbody = document.getElementById('bp-tbl-body');
+  if (!tbody) return;
+
+  const rows = [];
+  DB.entities.forEach(ent => {
+    const b = getBillForMonth(ent.id, m, y);
+    if (b) rows.push({ ent, bill: b });
+  });
+
+  const btn = document.getElementById('bp-download-all-btn');
+  if (btn) btn.disabled = !rows.length;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No bills for this period</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(({ ent, bill }) => `
+    <tr>
+      <td><div style="font-weight:600">${esc(ent.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(ent.meter||'—')}</div></td>
+      <td>${ent.ownerName ? esc(ent.ownerName) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td><span class="badge badge-gray">${ent.type}</span></td>
+      <td class="tbl-num"><strong>${rs(bill.totalDue)}</strong></td>
+      <td><span class="badge ${bill.paid?'badge-green':'badge-red'}">${bill.paid?'Paid':'Unpaid'}</span></td>
+      <td>${bill.imageUrl ? '<span class="badge badge-blue">Photo</span>' : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>
+        <button class="btn btn-primary btn-xs" onclick="downloadBillPdf(${ent.id},${bill.month},${bill.year})">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Filenames must never contain path separators or reserved characters.
+function sanitizeFilenamePart(s) {
+  return String(s || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function billPdfFilename(ent) {
+  const entName = sanitizeFilenamePart(ent.name) || 'Entity';
+  const ownerName = sanitizeFilenamePart(ent.ownerName) || 'Unknown owner';
+  return `${entName}_${ownerName}.pdf`;
+}
+
+// Downloads a remote image and returns it as a data: URL — done up front
+// so html2canvas never has to touch a cross-origin <img> (which would
+// taint the canvas) and so the PDF stays fully self-contained.
+async function fetchImageAsDataUrl(url) {
+  const resp = await fetch(url, { cache: 'no-store' });
+  if (!resp.ok) throw new Error('photo fetch failed (' + resp.status + ')');
+  const blob = await resp.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('photo read failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Builds the off-screen bill sheet used for rasterization. Mirrors the
+// markup in printBill() so the PDF and the printable browser view match.
+async function buildBillSheetEl(ent, bill, onStatus) {
+  const s = DB.settings;
+  const period = MONTHS_FULL[bill.month-1] + ' ' + bill.year;
+  const billNo = `${ent.id}-${bill.year}${String(bill.month).padStart(2,'0')}`;
+  const today = new Date().toLocaleDateString('en-PK', { day:'numeric', month:'long', year:'numeric' });
+  const elec = bill.ownUnits * bill.rate;
+  const arrearsRows = bill.arrearsMonths.map(mo =>
+    `<tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Arrears — ${MONTHS_FULL[mo.month-1]} ${mo.year}</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${rs(mo.charge)}</td></tr>`).join('');
+
+  let imgTag = '';
+  if (bill.imageUrl) {
+    onStatus?.(`Fetching meter photo for ${ent.name}…`);
+    try {
+      const dataUrl = await fetchImageAsDataUrl(bill.imageUrl);
+      imgTag = `<div style="margin-top:20px">
+        <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
+        <img src="${dataUrl}" style="max-width:90%;max-height:400px;border:1px solid #e8e6e1;border-radius:8px;display:block"/>
+      </div>`;
+    } catch (e) {
+      console.warn('bill image fetch failed', e);
+      toast(`Could not load photo for ${ent.name} — continuing without it`, 'error');
+    }
+  }
+
+  const kv = (lbl, val) => `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span style="color:#666">${lbl}</span><span style="font-weight:600;text-align:right">${val}</span></div>`;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:760px;font-family:Arial,Helvetica,sans-serif;color:#1a1917;background:#fff';
+  wrap.innerHTML = `
+    <div style="padding:32px 36px">
+      <div style="text-align:center;font-size:26px;font-weight:800;letter-spacing:.08em;color:#0369A1;margin-bottom:18px;text-transform:uppercase">MK Rose</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0EA5E9;padding-bottom:18px;margin-bottom:20px">
+        <div>
+          <div style="font-size:22px;font-weight:700">${esc(s.buildingName || 'Electricity Bill')}</div>
+          <div style="font-size:12px;color:#666;margin-top:4px;line-height:1.6">${esc(s.address||'')}${s.contact?'<br>'+esc(s.contact):''}</div>
+        </div>
+      </div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0EA5E9;margin-bottom:16px">Electricity Bill — ${esc(period)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
+        <div style="border:1px solid #e8e6e1;border-radius:8px;padding:14px 16px">
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Bill To</h4>
+          ${kv('Name of Tenant', esc(ent.ownerName||'—'))}
+          ${kv(ent.type==='shop'?'Shop:':'Flat:', esc(ent.name))}
+          ${kv('Meter No.', esc(ent.meter||'—'))}
+          ${ent.ownerPhone ? kv('Phone', esc(ent.ownerPhone)) : ''}
+        </div>
+        <div style="border:1px solid #e8e6e1;border-radius:8px;padding:14px 16px">
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Bill Details</h4>
+          ${kv('Bill No.', billNo)}
+          ${kv('Billing month', esc(period))}
+          ${kv('Issue date', today)}
+          ${kv('Status', `<span style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;${bill.paid?'background:#E0F2FE;color:#0369A1':'background:#FDECEA;color:#991F2A'}">${bill.paid?'PAID':'UNPAID'}</span>`)}
+          ${bill.paid && bill.paymentMode ? kv('Paid via', esc(paymentModeLabel(bill.paymentMode)) + (bill.paidAt ? ' on '+formatPaidDate(bill.paidAt) : '')) : ''}
+          ${bill.paid && bill.paymentRemarks ? kv('Remarks', esc(bill.paymentRemarks)) : ''}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
+        <thead><tr>
+          <th style="text-align:left;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;background:#f6f5f2;border-bottom:1px solid #eceae5">Description</th>
+          <th style="text-align:right;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;background:#f6f5f2;border-bottom:1px solid #eceae5">Amount</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Previous reading</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${num(bill.prevReading).toLocaleString(undefined,{maximumFractionDigits:2})}</td></tr>
+          <tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Current reading</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${num(bill.currReading).toLocaleString(undefined,{maximumFractionDigits:2})}</td></tr>
+          <tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Units consumed</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${bill.ownUnits} units</td></tr>
+          <tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Electricity (${bill.ownUnits} × Rs ${bill.rate})</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${rs(elec)}</td></tr>
+          <tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5"><strong>This month's charge</strong></td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right"><strong>${rs(bill.ownCharge)}</strong></td></tr>
+          ${arrearsRows}
+        </tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#E0F2FE;border:1px solid #bae6fd;border-radius:8px;padding:16px 20px;margin-top:14px">
+        <div style="font-size:13px;font-weight:600;color:#0369A1">${bill.paid ? 'Amount paid' : 'Total payable'}</div>
+        <div style="font-size:26px;font-weight:800;color:#0369A1">${rs(bill.totalDue)}</div>
+      </div>
+      ${imgTag}
+      <div style="margin-top:26px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eceae5;padding-top:14px;line-height:1.7">
+        This is a computer-generated bill${s.contact?` · For queries: ${esc(s.contact)}`:''}.<br>
+        ${bill.arrearsMonths.length?'Total payable includes unpaid arrears from previous month(s).':'Please pay before the due date to avoid arrears.'}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const img = wrap.querySelector('img');
+  if (img && !img.complete) await new Promise(res => { img.onload = res; img.onerror = res; });
+
+  return wrap;
+}
+
+// Rasterizes one bill sheet into a single-page (or paginated, if tall) A4 PDF blob.
+async function renderBillToPdfBlob(ent, bill, onStatus) {
+  const el = await buildBillSheetEl(ent, bill, onStatus);
+  try {
+    onStatus?.(`Rendering PDF for ${ent.name}…`);
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 24;
+    const imgW = pageW - margin * 2;
+    const imgH = canvas.height * (imgW / canvas.width);
+    const maxPageImgH = pageH - margin * 2;
+
+    if (imgH <= maxPageImgH) {
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, imgH);
+    } else {
+      // Sheet taller than one A4 page (e.g. bill + photo) — slice across pages.
+      const pxPerPage = Math.floor(maxPageImgH * (canvas.width / imgW));
+      let sY = 0, first = true;
+      while (sY < canvas.height) {
+        const sliceH = Math.min(pxPerPage, canvas.height - sY);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = sliceH;
+        slice.getContext('2d').drawImage(canvas, 0, sY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const sliceImgH = sliceH * (imgW / canvas.width);
+        if (!first) pdf.addPage();
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceImgH);
+        sY += sliceH;
+        first = false;
+      }
+    }
+    return pdf.output('blob');
+  } finally {
+    el.remove();
+  }
+}
+
+function showPdfProgress(title) {
+  document.getElementById('pdf-progress-title').textContent = title;
+  document.getElementById('pdf-progress-status').textContent = 'Preparing…';
+  document.getElementById('pdf-progress-bar').style.width = '0%';
+  document.getElementById('pdf-progress-count').textContent = '';
+  openModal('modal-pdf-progress');
+}
+function updatePdfProgress(status, done, total) {
+  document.getElementById('pdf-progress-status').textContent = status;
+  document.getElementById('pdf-progress-bar').style.width = (total ? Math.round(done/total*100) : 0) + '%';
+  document.getElementById('pdf-progress-count').textContent = total ? `${done} / ${total}` : '';
+}
+function hidePdfProgress() { closeModal('modal-pdf-progress'); }
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function downloadBillPdf(entityId, month, year) {
+  const ent = DB.entities.find(e => e.id === entityId);
+  if (!ent) return;
+  const bill = getBillForMonth(entityId, month, year);
+  if (!bill) { toast('Bill not found', 'error'); return; }
+
+  showPdfProgress(`Generating bill — ${ent.name}`);
+  updatePdfProgress('Preparing…', 0, 1);
+  try {
+    const blob = await renderBillToPdfBlob(ent, bill, s => updatePdfProgress(s, 0, 1));
+    updatePdfProgress('Done', 1, 1);
+    triggerBlobDownload(blob, billPdfFilename(ent));
+    toast('Bill PDF downloaded', 'success');
+  } catch (e) {
+    console.error(e);
+    toast('Failed to generate PDF: ' + e.message, 'error');
+  } finally {
+    hidePdfProgress();
+  }
+}
+
+async function downloadAllBillsZip() {
+  const sel = document.getElementById('bp-month');
+  const [m, y] = (sel?.value || '').split('-').map(Number);
+  if (!m || !y) { toast('Select a month first', 'error'); return; }
+
+  const rows = [];
+  DB.entities.forEach(ent => {
+    const b = getBillForMonth(ent.id, m, y);
+    if (b) rows.push({ ent, bill: b });
+  });
+  if (!rows.length) { toast('No bills to export for this period', 'error'); return; }
+
+  const btn = document.getElementById('bp-download-all-btn');
+  if (btn) btn.disabled = true;
+  showPdfProgress(`Generating ${rows.length} bill${rows.length>1?'s':''} — ${MONTHS_FULL[m-1]} ${y}`);
+  try {
+    const zip = new JSZip();
+    const usedNames = new Map();
+    for (let i = 0; i < rows.length; i++) {
+      const { ent, bill } = rows[i];
+      updatePdfProgress(`Preparing ${ent.name}…`, i, rows.length);
+      const blob = await renderBillToPdfBlob(ent, bill, s => updatePdfProgress(s, i, rows.length));
+      let name = billPdfFilename(ent);
+      const count = usedNames.get(name) || 0;
+      usedNames.set(name, count + 1);
+      if (count > 0) name = name.replace(/\.pdf$/, ` (${count}).pdf`);
+      zip.file(name, blob);
+    }
+    updatePdfProgress('Compressing ZIP…', rows.length, rows.length);
+    const zipBlob = await zip.generateAsync({ type: 'blob' }, meta => {
+      updatePdfProgress(`Compressing ZIP… ${Math.round(meta.percent)}%`, rows.length, rows.length);
+    });
+    triggerBlobDownload(zipBlob, `Bills_${MONTHS_FULL[m-1]}_${y}.zip`);
+    toast(`${rows.length} bill${rows.length>1?'s':''} downloaded`, 'success');
+  } catch (e) {
+    console.error(e);
+    toast('Failed to generate ZIP: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    hidePdfProgress();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL HELPERS + TOAST
+═══════════════════════════════════════════════════════════ */
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target===ov) closeModal(ov.id); });
+});
+
+function toast(msg, type='') {
+  if (type === 'error') console.log('[BillFlow error]', msg);
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icon = type==='success' ? '<svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>' : type==='error' ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' : '';
+  t.innerHTML = icon + msg;
+  tc.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+
+async function init() {
+  if (!CONFIGURED) {
+    toast('Add your Supabase URL and anon key at the top of the script', 'error');
+    initMonthSelector();
+    renderDashboard();
+    return;
+  }
+  const ok = await loadAll();
+  initMonthSelector();
+  renderDashboard();
+  if (ok && !DB.entities.length) toast('Connected. Add your first entity to begin.', 'success');
+}
+
+init();
+</script>
+</body>
+</html>
