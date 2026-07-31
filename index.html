@@ -420,14 +420,52 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
 @media(max-width:900px){
   .stats-row{grid-template-columns:repeat(3,1fr)}
   .charts-grid{grid-template-columns:1fr}
+  .charts-grid-4{grid-template-columns:1fr}
   .detail-stats{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:600px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .entity-grid{grid-template-columns:1fr}
-  .topbar{padding:0 1rem}
   .page{padding:1rem}
-  .nav-btn span{display:none}
+
+  /* Topbar: stack into rows instead of squeezing everything into one —
+     logo on its own row, nav scrollable below it (all tabs stay reachable
+     via swipe, none get hidden), controls wrap onto their own row. */
+  .topbar{flex-wrap:wrap;height:auto;min-height:52px;padding:8px 1rem;row-gap:8px}
+  .topbar-left{width:100%;flex-wrap:wrap;row-gap:8px}
+  .logo{margin-right:auto}
+  .nav{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav-btn{flex-shrink:0}
+  .topbar-right{width:100%;flex-wrap:wrap;justify-content:flex-end}
+  .month-selector{flex:1;min-width:0}
+  #topbar-add-entity-btn span{display:none}
+
+  /* Two-column forms feel cramped on a phone keyboard-width screen —
+     stack every field full-width instead. */
+  .form-row{grid-template-columns:1fr}
+
+  /* Section headers (page title + filter/action controls) wrap instead
+     of overlapping when there isn't room side by side. */
+  .sec-hdr{flex-wrap:wrap;gap:10px}
+  .detail-hdr{flex-wrap:wrap;gap:12px}
+
+  /* Tables still scroll horizontally (.tbl-wrap already handles that),
+     but tighter padding/type means less scrolling is needed to begin with. */
+  .tbl{font-size:11.5px}
+  .tbl th{padding:7px 10px}
+  .tbl td{padding:8px 10px}
+
+  /* Prevent a long toast message from running off the left edge — it
+     was only ever anchored to the right, sized to its own content. */
+  #toast-container{left:12px;right:12px}
+  .toast{max-width:100%}
+}
+@media(max-width:420px){
+  .login-card,.loading-card{padding:26px 20px}
+  .modal-body{padding:16px}
+  .modal-foot{padding:12px 16px}
+  .stat-val{font-size:19px}
 }
 </style>
 </head>
@@ -514,9 +552,9 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
       <svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
     </button>
     <select class="month-selector" id="globalMonth" onchange="onMonthChange()"></select>
-    <button class="btn btn-primary" onclick="openAddEntity()">
+    <button class="btn btn-primary" id="topbar-add-entity-btn" onclick="openAddEntity()">
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add entity
+      <span>Add entity</span>
     </button>
     <button class="btn btn-ghost btn-icon" onclick="logout()" aria-label="Sign out" title="Sign out">
       <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -821,7 +859,10 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
     <div class="settings-section">
       <div class="sec-hdr" style="margin-bottom:6px">
         <h3 style="margin-bottom:0;padding-bottom:0;border-bottom:none">Change History</h3>
-        <input class="form-ctrl" id="audit-date" type="date" style="width:auto" onchange="loadAudit()"/>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-ctrl" id="audit-date" type="date" style="width:auto" onchange="loadAudit()"/>
+          <button class="btn btn-ghost btn-sm" onclick="clearAuditDate()">Show all</button>
+        </div>
       </div>
       <div class="form-hint" style="margin-bottom:10px">Every add, edit, delete and restore, recorded automatically. This log cannot be edited.</div>
       <div id="audit-list"></div>
@@ -2079,24 +2120,39 @@ function localDateInputValue(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+function clearAuditDate() {
+  const dateInput = document.getElementById('audit-date');
+  if (dateInput) dateInput.value = '';
+  loadAudit();
+}
+
 async function loadAudit() {
   const list = document.getElementById('audit-list');
   if (!list) return;
 
-  const dateInput = document.getElementById('audit-date');
-  if (dateInput && !dateInput.value) dateInput.value = localDateInputValue(new Date());
-  const [y, m, d] = (dateInput?.value || localDateInputValue(new Date())).split('-').map(Number);
-  const dayStart = new Date(y, m-1, d, 0, 0, 0, 0);
-  const dayEnd = new Date(y, m-1, d+1, 0, 0, 0, 0);
-  const isToday = localDateInputValue(new Date()) === localDateInputValue(dayStart);
+  // No date selected = show everything ever recorded, not just today.
+  // The date input is left empty (native "mm/dd/yyyy" placeholder shows
+  // through) instead of being force-filled back to today's date.
+  const dateVal = document.getElementById('audit-date')?.value || '';
 
   list.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">Loading…</div>';
 
-  const { data, error } = await sb.from('audit_log').select('*').gte('created_at', dayStart.toISOString()).lt('created_at', dayEnd.toISOString()).order('created_at', { ascending: false });
+  let query = sb.from('audit_log').select('*').order('created_at', { ascending: false });
+  let emptyMsg = 'No changes recorded yet.';
+  if (dateVal) {
+    const [y, m, d] = dateVal.split('-').map(Number);
+    const dayStart = new Date(y, m-1, d, 0, 0, 0, 0);
+    const dayEnd = new Date(y, m-1, d+1, 0, 0, 0, 0);
+    const isToday = localDateInputValue(new Date()) === dateVal;
+    query = query.gte('created_at', dayStart.toISOString()).lt('created_at', dayEnd.toISOString());
+    emptyMsg = `No changes recorded ${isToday ? 'today' : 'on this date'}.`;
+  }
+
+  const { data, error } = await query;
   if (error) { list.innerHTML = '<div style="padding:16px 0;color:var(--red-dk);font-size:12.5px">Failed to load change history.</div>'; return; }
 
   if (!data || !data.length) {
-    list.innerHTML = `<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">No changes recorded ${isToday ? 'today' : 'on this date'}.</div>`;
+    list.innerHTML = `<div style="padding:16px 0;text-align:center;color:var(--text3);font-size:12.5px">${emptyMsg}</div>`;
     return;
   }
 
