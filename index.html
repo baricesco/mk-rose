@@ -8,8 +8,7 @@
 (function(){
   try {
     var stored = localStorage.getItem('theme');
-    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', stored || 'dark');
   } catch (e) {}
 })();
 </script>
@@ -1202,15 +1201,6 @@ function toggleTheme() {
   const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
   try { localStorage.setItem('theme', next); } catch (e) {}
   applyTheme(next);
-}
-
-// Live-follow the OS theme until the user picks one explicitly via the toggle.
-if (window.matchMedia) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    let stored = null;
-    try { stored = localStorage.getItem('theme'); } catch (err) {}
-    if (!stored) applyTheme(e.matches ? 'dark' : 'light');
-  });
 }
 
 // Chart.js reads colors as plain strings at chart-creation time, not CSS
