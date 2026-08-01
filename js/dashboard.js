@@ -109,13 +109,16 @@ function renderDashCharts() {
   // straight away. Touch — the first tap is what shows the tooltip (no
   // hover to do it first), so that tap must NOT navigate; only a second
   // tap on that same bar (the one whose tooltip just opened) does.
-  const entUnits = DB.entities.map(e=>{ const b=getBillForMonth(e.id,selectedMonth,selectedYear); return b?b.ownUnits:0; });
-  const entColors = DB.entities.map(e=>e.type==='shop'?pal.shop:pal.flat);
+  // Only entities with an actual bill this month — someone who moved out
+  // last month has no business showing up as a zero-unit bar here.
+  const chartEntities = DB.entities.filter(e => getBillForMonth(e.id, selectedMonth, selectedYear));
+  const entUnits = chartEntities.map(e => getBillForMonth(e.id,selectedMonth,selectedYear).ownUnits);
+  const entColors = chartEntities.map(e=>e.type==='shop'?pal.shop:pal.flat);
   const isHoverCapable = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
   let unitsLastTap = { index:null, time:0 };
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
-    data:{labels:DB.entities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
+    data:{labels:chartEntities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
     options:{...opts,
     // index/intersect:false = matched by x-position (column) alone, so
     // hovering/clicking anywhere above a short bar still hits it, not
@@ -128,7 +131,7 @@ function renderDashCharts() {
     onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
     onClick:(evt,els)=>{
       if (!els.length) return;
-      const ent = DB.entities[els[0].index];
+      const ent = chartEntities[els[0].index];
       if (!ent) return;
       if (isHoverCapable) { openEntityDetail(ent.id); return; }
       const now = Date.now();
