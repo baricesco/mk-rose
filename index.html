@@ -1210,6 +1210,22 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
   </div>
 </div>
 
+<div class="overlay" id="modal-confirm-exit">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-hdr">
+      <div class="modal-title">Exit MK ROSE?</div>
+      <button class="modal-close" aria-label="Close" onclick="cancelExitPrompt()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">Are you sure you want to exit?</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="cancelExitPrompt()">Stay</button>
+      <button class="btn btn-danger" onclick="confirmExitPrompt()">Exit</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════════════════
    ⚙️  SUPABASE CONFIG  — paste your project values here
@@ -3470,6 +3486,41 @@ async function init() {
   renderDashboard();
   if (ok && !DB.entities.length) toast('Connected. Add your first entity to begin.', 'success');
 }
+
+/* ═══════════════════════════════════════════════════════════
+   EXIT CONFIRMATION  (browser/gesture back button)
+
+   The app is a single page with no per-page URL routing, so there's
+   nothing for the back button to step through — it would just leave
+   the site immediately. We plant a dummy history entry ahead of the
+   real one; back-navigation lands on it (a no-op popstate) instead of
+   leaving. If the user confirms, we consume that entry too so the
+   *next* back() actually exits; if they cancel, we plant a fresh
+   dummy entry so the trap re-arms for the next back press.
+═══════════════════════════════════════════════════════════ */
+let exitPromptAllowNextPop = false;
+
+function armExitGuard() {
+  try { history.pushState({ mkroseExitGuard: true }, '', location.href); } catch (e) {}
+}
+
+function cancelExitPrompt() {
+  closeModal('modal-confirm-exit');
+  armExitGuard();
+}
+
+function confirmExitPrompt() {
+  closeModal('modal-confirm-exit');
+  exitPromptAllowNextPop = true;
+  history.back();
+}
+
+window.addEventListener('popstate', () => {
+  if (exitPromptAllowNextPop) { exitPromptAllowNextPop = false; return; }
+  openModal('modal-confirm-exit');
+});
+
+armExitGuard();
 
 if (isLoggedIn()) { showLoadingScreen(); init(); } else { showLoginScreen(); }
 </script>
