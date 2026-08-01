@@ -102,17 +102,29 @@ function renderDashCharts() {
     <div class="leg-item"><div class="leg-dot" style="background:${pal.unpaid}"></div>${s.unpaidCount} Unpaid</div>
   `;
 
-  const entLabels = DB.entities.map(e=>e.name.replace('Flat ','F').replace('Shop ','S'));
+  // Entity names are dropped from the x-axis entirely (too many/too long
+  // to ever "fit") — the tooltip still shows the full name on a single
+  // click/hover like before; a double-click jumps to that entity's detail.
   const entUnits = DB.entities.map(e=>{ const b=getBillForMonth(e.id,selectedMonth,selectedYear); return b?b.ownUnits:0; });
   const entColors = DB.entities.map(e=>e.type==='shop'?pal.shop:pal.flat);
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
-    data:{labels:entLabels,datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
+    data:{labels:DB.entities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
     options:{...opts,scales:{
-      x:{grid:{display:false},ticks:{font:{size:10},color:pal.tick}},
+      x:{grid:{display:false},ticks:{display:false}},
       y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
-    },plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
+    },
+    onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
   });
+  // .ondblclick (not addEventListener) so re-rendering the chart on month
+  // change replaces this instead of stacking duplicate listeners.
+  document.getElementById('unitsChart').ondblclick = (evt) => {
+    const els = chartInstances.units.getElementsAtEventForMode(evt, 'nearest', {intersect:true}, true);
+    if (!els.length) return;
+    const ent = DB.entities[els[0].index];
+    if (ent) openEntityDetail(ent.id);
+  };
 
   chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
     type:'line',
