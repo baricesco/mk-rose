@@ -84,7 +84,7 @@ function showEntityDetail(entityId) {
         <button class="btn btn-ghost" onclick="requestUnlockEdit('entity', ${ent.id})">
           <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Edit
         </button>
-        <button class="btn btn-ghost" title="${ent.vacatedAt ? 'Mark as occupied again' : 'Flag this entity as vacated — tenant/owner has left'}" onclick="toggleEntityVacated(${ent.id})">
+        <button class="btn btn-ghost" title="${ent.vacatedAt ? 'Mark as occupied again' : 'Flag this entity as vacated — tenant/owner has left'}" onclick="${ent.vacatedAt ? `markEntityOccupied(${ent.id})` : `openVacateModal(${ent.id})`}">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>${ent.vacatedAt ? 'Mark occupied' : 'Mark vacated'}
         </button>
         <button class="btn btn-ghost" title="Share with tenant" aria-label="Share with tenant" onclick="openEntityShare(${ent.id})">
@@ -206,17 +206,44 @@ function renderEntitiesPage() {
 // Flags an entity as vacated (tenant/shop owner has left) or reverses
 // that — doesn't touch bills, billing, or the share link, purely a
 // status marker so a vacated entity is still visible (dimmed + badged)
-// rather than hidden like a soft-deleted one.
-async function toggleEntityVacated(entityId) {
+// rather than hidden like a soft-deleted one. Vacated-as-of date is
+// stored as the last day of the chosen month (noon, to dodge timezone
+// rounding) — matches how meter photo dates are treated elsewhere.
+async function setEntityVacated(entityId, vacatedAtIso) {
   const ent = DB.entities.find(e=>e.id===entityId);
   if (!ent) return;
-  const next = ent.vacatedAt ? null : new Date().toISOString();
-  const { error } = await sb.from('entities').update({ vacated_at: next }).eq('id', entityId);
+  const { error } = await sb.from('entities').update({ vacated_at: vacatedAtIso }).eq('id', entityId);
   if (error) { toast('Error: '+error.message, 'error'); return; }
-  logAudit('entities', entityId, 'update', `${next ? 'Marked' : 'Unmarked'} "${ent.name}" as vacated`);
+  logAudit('entities', entityId, 'update', vacatedAtIso
+    ? `Marked "${ent.name}" as vacated (${formatPaidDate(vacatedAtIso)})`
+    : `Unmarked "${ent.name}" as vacated`);
   await loadAll();
   rerenderCurrent();
-  toast(next ? 'Entity marked as vacated' : 'Entity marked as occupied', 'success');
+  toast(vacatedAtIso ? 'Entity marked as vacated' : 'Entity marked as occupied', 'success');
+}
+
+function markEntityOccupied(entityId) { setEntityVacated(entityId, null); }
+
+let vacateModalEntityId = null;
+
+function openVacateModal(entityId) {
+  const ent = DB.entities.find(e=>e.id===entityId);
+  if (!ent) return;
+  vacateModalEntityId = entityId;
+  document.getElementById('vacate-entity-name').textContent = ent.name;
+  const now = new Date();
+  document.getElementById('vacate-month').value = now.getMonth()+1;
+  document.getElementById('vacate-year').value = now.getFullYear();
+  openModal('modal-vacate');
+}
+
+async function submitVacateEntity() {
+  const month = parseInt(document.getElementById('vacate-month').value);
+  const year = parseInt(document.getElementById('vacate-year').value);
+  if (!year) { toast('Enter a year', 'error'); return; }
+  closeModal('modal-vacate');
+  const vacatedAtIso = new Date(year, month, 0, 12, 0, 0).toISOString();
+  await setEntityVacated(vacateModalEntityId, vacatedAtIso);
 }
 
 /* ═══════════════════════════════════════════════════════════
