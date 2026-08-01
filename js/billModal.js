@@ -88,6 +88,25 @@ async function resolveBillImageUrl(entityId, month, year) {
   return billImageExistingUrl;
 }
 
+// Vacated entities are blocked from getting new readings until they're
+// marked occupied again — this both warns and disables Save, and
+// saveBill() re-checks the same thing server-side-of-the-click in case
+// the modal's state gets out of sync.
+function updateVacatedWarning() {
+  const entityId = parseInt(document.getElementById('bf-entity').value);
+  const ent = DB.entities.find(e=>e.id===entityId);
+  const warning = document.getElementById('bf-vacated-warning');
+  const saveBtn = document.getElementById('btn-save-bill');
+  if (ent?.vacatedAt) {
+    warning.textContent = `"${ent.name}" is marked vacated (since ${formatPaidDate(ent.vacatedAt)}) — mark it occupied again before adding a reading.`;
+    warning.style.display = 'block';
+    saveBtn.disabled = true;
+  } else {
+    warning.style.display = 'none';
+    saveBtn.disabled = false;
+  }
+}
+
 function openAddBill() {
   const currentRate = DB.settings.currentRate;
   document.getElementById('modal-bill-title').textContent = 'Add meter reading';
@@ -101,6 +120,7 @@ function openAddBill() {
   document.getElementById('bf-rate').value = currentRate;
   document.getElementById('bill-preview').style.display = 'none';
   resetBillImage();
+  updateVacatedWarning();
   openModal('modal-bill');
 }
 
@@ -126,6 +146,7 @@ function openEditBill(id) {
   resetBillImage();
   if (bill.imageUrl) { billImageExistingUrl = bill.imageUrl; showBillImage(bill.imageUrl); }
   calcBillPreview();
+  updateVacatedWarning();
   openModal('modal-bill');
 }
 
@@ -133,6 +154,7 @@ function onBillEntityChange() {
   const entityId = parseInt(document.getElementById('bf-entity').value);
   const month = parseInt(document.getElementById('bf-month').value);
   const year = parseInt(document.getElementById('bf-year').value);
+  updateVacatedWarning();
   if (!entityId) { document.getElementById('bf-prev').value=''; return; }
 
   const ent = DB.entities.find(e=>e.id===entityId);
@@ -190,6 +212,8 @@ async function saveBill() {
   const rate = num(document.getElementById('bf-rate').value);
 
   if (!entityId) { toast('Select an entity', 'error'); return; }
+  const selectedEnt = DB.entities.find(e=>e.id===entityId);
+  if (selectedEnt?.vacatedAt) { toast(`"${selectedEnt.name}" is marked vacated — mark it occupied again before adding a reading`, 'error'); return; }
   if (document.getElementById('bf-curr').value === '' || curr < prev) { toast('Current reading must be ≥ previous reading', 'error'); return; }
   if (!rate) { toast('Rate is required', 'error'); return; }
   if (isPeriodLocked(month, year)) { toast(`${MONTHS_FULL[month-1]} ${year} is locked — unlock it in Settings to make changes`, 'error'); return; }
