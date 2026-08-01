@@ -103,10 +103,16 @@ function renderDashCharts() {
   `;
 
   // Entity names are dropped from the x-axis entirely (too many/too long
-  // to ever "fit") — the tooltip still shows the full name on a single
-  // click/hover like before; a double-click jumps to that entity's detail.
+  // to ever "fit") — the tooltip still shows the full name on hover.
+  // Opening the entity differs by input type since touch has no hover:
+  // mouse/desktop — hover already previews it, so a click opens it
+  // straight away. Touch — the first tap is what shows the tooltip (no
+  // hover to do it first), so that tap must NOT navigate; only a second
+  // tap on that same bar (the one whose tooltip just opened) does.
   const entUnits = DB.entities.map(e=>{ const b=getBillForMonth(e.id,selectedMonth,selectedYear); return b?b.ownUnits:0; });
   const entColors = DB.entities.map(e=>e.type==='shop'?pal.shop:pal.flat);
+  const isHoverCapable = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  let unitsLastTap = { index:null, time:0 };
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
     data:{labels:DB.entities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
@@ -120,19 +126,18 @@ function renderDashCharts() {
       y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
     },
     onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+    onClick:(evt,els)=>{
+      if (!els.length) return;
+      const ent = DB.entities[els[0].index];
+      if (!ent) return;
+      if (isHoverCapable) { openEntityDetail(ent.id); return; }
+      const now = Date.now();
+      const isRepeatTap = unitsLastTap.index===els[0].index && (now-unitsLastTap.time)<3000;
+      unitsLastTap = { index:els[0].index, time:now };
+      if (isRepeatTap) openEntityDetail(ent.id);
+    },
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
   });
-  // .ondblclick (not addEventListener) so re-rendering the chart on month
-  // change replaces this instead of stacking duplicate listeners.
-  // mode:'index' + intersect:false matches by x-position only, so
-  // clicking anywhere in a bar's column — even above a short bar, where
-  // there's no bar shape to literally intersect — still hits it.
-  document.getElementById('unitsChart').ondblclick = (evt) => {
-    const els = chartInstances.units.getElementsAtEventForMode(evt, 'index', {intersect:false}, true);
-    if (!els.length) return;
-    const ent = DB.entities[els[0].index];
-    if (ent) openEntityDetail(ent.id);
-  };
 
   chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
     type:'line',
