@@ -825,13 +825,21 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
       <div style="font-size:12px;color:var(--text3);margin-top:2px">Meter/bill photos from every reading — click to view, download one or all</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select class="filter-select" id="gal-entity" onchange="renderGalleryPage()">
+      <div class="search-wrap" style="width:200px">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="gal-search" placeholder="Search by entity…" oninput="galleryFiltersChanged()"/>
+      </div>
+      <select class="filter-select" id="gal-entity" onchange="galleryFiltersChanged()">
         <option value="">All entities</option>
       </select>
-      <select class="filter-select month-selector" id="gal-month" onchange="renderGalleryPage()">
+      <select class="filter-select month-selector" id="gal-month" onchange="galleryFiltersChanged()">
         <option value="">All months</option>
       </select>
-      <button class="btn btn-primary" id="gal-download-all-btn" onclick="downloadGalleryZip()">
+      <button class="btn btn-ghost" id="gal-run-btn" onclick="runGalleryQuery()">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+        Run
+      </button>
+      <button class="btn btn-primary" id="gal-download-all-btn" onclick="downloadGalleryZip()" disabled>
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download all (ZIP)
       </button>
@@ -3197,6 +3205,7 @@ async function downloadAllBillsZip() {
 let galleryItems = [];       // every (entity, period) with a reading, in the current filter
 let galleryPhotoItems = [];  // subset of the above that actually has a photo — what the lightbox steps through
 let lightboxIndex = -1;
+let galleryHasRun = false;   // becomes true once "Run" has been clicked for the current filters
 
 function photoFilename(item) {
   const entName = sanitizeFilenamePart(item.ent.name) || 'Entity';
@@ -3208,6 +3217,16 @@ function photoFilename(item) {
   return `${entName}_${ownerName}_${period}.${ext}`;
 }
 
+// Filters (search/entity/month) never trigger the query themselves — changing
+// them just invalidates the last run so stale results can't be downloaded.
+function galleryFiltersChanged() {
+  galleryHasRun = false;
+  renderGalleryPage();
+}
+
+// Populates the filter dropdowns only — cheap, local, no photo fetching.
+// The actual DB query + photo grid (which fetches every photo shown) only
+// happens when the user clicks "Run", via runGalleryQuery() below.
 function renderGalleryPage() {
   const entSel = document.getElementById('gal-entity');
   if (entSel) {
@@ -3223,11 +3242,28 @@ function renderGalleryPage() {
       periods.map(p => `<option value="${p.m}-${p.y}"${cur===p.m+'-'+p.y?' selected':''}>${MONTHS_FULL[p.m-1]} ${p.y}</option>`).join('');
   }
 
+  if (!galleryHasRun) {
+    galleryItems = [];
+    galleryPhotoItems = [];
+    const dlBtn = document.getElementById('gal-download-all-btn');
+    if (dlBtn) dlBtn.disabled = true;
+    const grid = document.getElementById('gallery-grid');
+    if (grid) grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg><p>Set your filters and click "Run" to load photos</p></div>`;
+  }
+}
+
+function runGalleryQuery() {
+  galleryHasRun = true;
+
+  const entSel = document.getElementById('gal-entity');
+  const monthSel = document.getElementById('gal-month');
   const entF = entSel?.value || '';
   const monthF = monthSel?.value || '';
+  const search = document.getElementById('gal-search')?.value.trim().toLowerCase() || '';
 
   let entities = DB.entities;
   if (entF) entities = entities.filter(e => String(e.id) === entF);
+  if (search) entities = entities.filter(e => [e.name, e.ownerName].some(v => String(v||'').toLowerCase().includes(search)));
   let periods;
   if (monthF) { const [m,y] = monthF.split('-').map(Number); periods = [{ m, y }]; }
   else periods = getPeriods();
