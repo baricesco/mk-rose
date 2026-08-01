@@ -200,18 +200,20 @@ function renderEntitiesPage() {
 /* ═══════════════════════════════════════════════════════════
    SHARE MODAL  (Drive-style "share" dialog — link + active/inactive)
 
-   The link itself never changes and never expires: it's just
-   share.html pointed at this entity's id, always pulling live
-   data, so future months' bills/photos show up automatically
-   without ever generating a new link. share_enabled (toggled
-   below) is the only thing that can take it offline — flipping
-   it back on brings the exact same URL back to life.
+   The link is keyed off share_token (a random uuid), not the entity's
+   plain sequential id — so there's nothing to increment/guess in the
+   URL to land on a different entity's bills. The link itself never
+   changes and never expires: share.html always pulls live data by
+   that token, so future months' bills/photos show up automatically
+   without ever generating a new link. share_enabled (toggled below)
+   is the only thing that can take it offline — flipping it back on
+   brings the exact same URL back to life.
 ═══════════════════════════════════════════════════════════ */
 
 let shareModalEntityId = null;
 
-function shareLinkFor(entityId) {
-  return new URL('share.html?e=' + entityId, location.href).href;
+function shareLinkFor(ent) {
+  return new URL('share.html?s=' + encodeURIComponent(ent.shareToken), location.href).href;
 }
 
 function openEntityShare(entityId) {
@@ -225,7 +227,7 @@ function renderShareModal() {
   if (!ent) return;
 
   document.getElementById('modal-share-title').textContent = `Share — ${ent.name}`;
-  document.getElementById('share-link-input').value = shareLinkFor(ent.id);
+  document.getElementById('share-link-input').value = shareLinkFor(ent);
 
   const activeBtn = document.getElementById('share-modal-active-btn');
   const inactiveBtn = document.getElementById('share-modal-inactive-btn');
@@ -266,6 +268,6 @@ function copyShareLink() {
 function openShareLinkNewTab() {
   const ent = DB.entities.find(e=>e.id===shareModalEntityId);
   if (!ent) return;
-  window.open(shareLinkFor(ent.id), '_blank');
+  window.open(shareLinkFor(ent), '_blank');
 }
 

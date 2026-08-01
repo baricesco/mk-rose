@@ -133,7 +133,7 @@ function getYears() {
 }
 
 /* ── row mappers: snake_case (db) ↔ camelCase (app) ────────── */
-function mapEntity(r){ return { id:r.id, name:r.name, type:r.type, meter:r.meter||'', ownerName:r.owner_name||'', ownerPhone:r.owner_phone||'', shareEnabled:r.share_enabled!==false }; }
+function mapEntity(r){ return { id:r.id, name:r.name, type:r.type, meter:r.meter||'', ownerName:r.owner_name||'', ownerPhone:r.owner_phone||'', shareEnabled:r.share_enabled!==false, shareToken:r.share_token||'' }; }
 function mapBill(r){ return { id:r.id, entityId:r.entity_id, month:r.month, year:r.year, prevReading:num(r.prev_reading), currReading:num(r.curr_reading), unitsUsed:num(r.units_used), rate:num(r.rate), paid:!!r.paid, imageUrl:r.bill_image_url||'', paidAt:r.paid_at||null, paymentMode:r.payment_mode||'', paymentRemarks:r.payment_remarks||'' }; }
 
 const PAYMENT_MODE_LABELS = { cash:'Cash', askari:'Askari Bank', easypaisa:'Easypaisa', jazzcash:'JazzCash', other:'Other' };

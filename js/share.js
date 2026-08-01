@@ -1,18 +1,21 @@
 /* ═══════════════════════════════════════════════════════════
    SHARE PAGE  (read-only, tenant-facing view for one entity)
 
-   Loaded standalone from share.html?e=<entityId> — always light
-   theme, no login. Talks to Supabase directly with the same
-   anon key as the main app (data.js / print.js are reused as-is
-   for their helpers; only this entity's own rows are fetched).
+   Loaded standalone from share.html?s=<shareToken> — always light
+   theme, no login. Talks to Supabase directly with the same anon
+   key as the main app (data.js / print.js are reused as-is for
+   their helpers; only this entity's own rows are fetched).
+
+   The lookup key is share_token (a random uuid), not the entity's
+   plain sequential id, so there's nothing in the URL to increment
+   or guess your way into a different entity's bills.
 ═══════════════════════════════════════════════════════════ */
 
 let sharePhotoItems = [];   // bills (for this entity) that have a photo, newest first
 let shareLightboxIndex = -1;
 
-function shareEntityIdFromUrl() {
-  const id = parseInt(new URLSearchParams(location.search).get('e'), 10);
-  return Number.isFinite(id) ? id : null;
+function shareTokenFromUrl() {
+  return new URLSearchParams(location.search).get('s') || null;
 }
 
 // The meter/bill photo for a billing period is treated as taken on the
@@ -22,13 +25,17 @@ function shareLastDayLabel(month, year) {
   return shareLastDayDate(month, year).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' });
 }
 
-async function loadShareData(entityId) {
-  const [entRes, billsRes, setRes] = await Promise.all([
-    sb.from('entities').select('*').eq('id', entityId).is('deleted_at', null).maybeSingle(),
+async function loadShareData(token) {
+  const entRes = await sb.from('entities').select('*').eq('share_token', token).is('deleted_at', null).maybeSingle();
+  if (entRes.error || !entRes.data) return false;
+  const entityId = entRes.data.id;
+
+  const [billsRes, setRes] = await Promise.all([
     sb.from('bills').select('*').eq('entity_id', entityId).is('deleted_at', null),
     sb.from('settings').select('*').eq('id', 1).maybeSingle(),
   ]);
-  if (entRes.error || billsRes.error || !entRes.data) return false;
+  if (billsRes.error || setRes.error) return false;
+
   DB.entities = [mapEntity(entRes.data)];
   DB.bills = (billsRes.data || []).map(mapBill);
   DB.settings = setRes.data ? {
@@ -62,11 +69,11 @@ function renderShareInactive() {
 }
 
 async function initSharePage() {
-  const entityId = shareEntityIdFromUrl();
-  if (!entityId) { renderShareError('No entity specified — this link is invalid.'); return; }
+  const token = shareTokenFromUrl();
+  if (!token) { renderShareError('No share link specified — this link is invalid.'); return; }
   if (!CONFIGURED) { renderShareError('Database not configured.'); return; }
   try {
-    const ok = await loadShareData(entityId);
+    const ok = await loadShareData(token);
     if (!ok) { renderShareError('This entity could not be found — the link may be out of date.'); return; }
     if (!DB.entities[0].shareEnabled) { renderShareInactive(); return; }
     renderSharePage();
