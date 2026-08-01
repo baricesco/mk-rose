@@ -110,7 +110,12 @@ function renderDashCharts() {
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
     data:{labels:DB.entities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
-    options:{...opts,scales:{
+    options:{...opts,
+    // index/intersect:false = matched by x-position (column) alone, so
+    // hovering/clicking anywhere above a short bar still hits it, not
+    // just the bar's own colored area.
+    interaction:{mode:'index',intersect:false},
+    scales:{
       x:{grid:{display:false},ticks:{display:false}},
       y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
     },
@@ -119,8 +124,11 @@ function renderDashCharts() {
   });
   // .ondblclick (not addEventListener) so re-rendering the chart on month
   // change replaces this instead of stacking duplicate listeners.
+  // mode:'index' + intersect:false matches by x-position only, so
+  // clicking anywhere in a bar's column — even above a short bar, where
+  // there's no bar shape to literally intersect — still hits it.
   document.getElementById('unitsChart').ondblclick = (evt) => {
-    const els = chartInstances.units.getElementsAtEventForMode(evt, 'nearest', {intersect:true}, true);
+    const els = chartInstances.units.getElementsAtEventForMode(evt, 'index', {intersect:false}, true);
     if (!els.length) return;
     const ent = DB.entities[els[0].index];
     if (ent) openEntityDetail(ent.id);
