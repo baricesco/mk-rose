@@ -55,9 +55,6 @@ function showEntityDetail(entityId) {
             <button class="btn btn-ghost btn-xs" title="Edit reading" aria-label="Edit reading" onclick="requestUnlockEdit('bill', ${b.id})">
               <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="btn btn-ghost btn-xs" title="Delete reading" aria-label="Delete reading" onclick="confirmDeleteBill(${b.id})">
-              <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-            </button>
           </div>
         </td>
       </tr>
@@ -86,6 +83,9 @@ function showEntityDetail(entityId) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost" onclick="requestUnlockEdit('entity', ${ent.id})">
           <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Edit
+        </button>
+        <button class="btn btn-ghost" title="Share with tenant" aria-label="Share with tenant" onclick="openEntityShare(${ent.id})">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share
         </button>
         <button class="btn btn-ghost" onclick="openAddBillForEntity(${ent.id})">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add reading
@@ -195,5 +195,77 @@ function renderEntitiesPage() {
       </tr>
     `;
   }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SHARE MODAL  (Drive-style "share" dialog — link + active/inactive)
+
+   The link itself never changes and never expires: it's just
+   share.html pointed at this entity's id, always pulling live
+   data, so future months' bills/photos show up automatically
+   without ever generating a new link. share_enabled (toggled
+   below) is the only thing that can take it offline — flipping
+   it back on brings the exact same URL back to life.
+═══════════════════════════════════════════════════════════ */
+
+let shareModalEntityId = null;
+
+function shareLinkFor(entityId) {
+  return new URL('share.html?e=' + entityId, location.href).href;
+}
+
+function openEntityShare(entityId) {
+  shareModalEntityId = entityId;
+  renderShareModal();
+  openModal('modal-share');
+}
+
+function renderShareModal() {
+  const ent = DB.entities.find(e=>e.id===shareModalEntityId);
+  if (!ent) return;
+
+  document.getElementById('modal-share-title').textContent = `Share — ${ent.name}`;
+  document.getElementById('share-link-input').value = shareLinkFor(ent.id);
+
+  const activeBtn = document.getElementById('share-modal-active-btn');
+  const inactiveBtn = document.getElementById('share-modal-inactive-btn');
+  activeBtn.className = 'btn btn-sm ' + (ent.shareEnabled ? 'btn-primary' : 'btn-ghost');
+  inactiveBtn.className = 'btn btn-sm ' + (!ent.shareEnabled ? 'btn-danger' : 'btn-ghost');
+
+  document.getElementById('share-status-note').textContent = ent.shareEnabled
+    ? 'Anyone with this link can view billing history, download bills, and see dated meter photos — no login needed.'
+    : 'This link is inactive — anyone opening it sees a "turned off" message instead of any data.';
+}
+
+// Sets share_enabled directly (not a blind toggle), so clicking the
+// button matching the current state is a harmless no-op.
+async function setEntityShareActive(active) {
+  const ent = DB.entities.find(e=>e.id===shareModalEntityId);
+  if (!ent || ent.shareEnabled === active) return;
+  const { error } = await sb.from('entities').update({ share_enabled: active }).eq('id', ent.id);
+  if (error) { toast('Error: '+error.message, 'error'); return; }
+  logAudit('entities', ent.id, 'update', `${active ? 'Activated' : 'Deactivated'} share link for "${ent.name}"`);
+  await loadAll();
+  renderShareModal();
+  rerenderCurrent();
+  toast(active ? 'Share link is now active' : 'Share link is now inactive', 'success');
+}
+
+function copyShareLink() {
+  const input = document.getElementById('share-link-input');
+  input.select();
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(input.value)
+      .then(() => toast('Link copied', 'success'))
+      .catch(() => toast('Copy failed — select the link and copy manually', 'error'));
+  } else {
+    toast('Link selected — copy with Ctrl+C', '');
+  }
+}
+
+function openShareLinkNewTab() {
+  const ent = DB.entities.find(e=>e.id===shareModalEntityId);
+  if (!ent) return;
+  window.open(shareLinkFor(ent.id), '_blank');
 }
 

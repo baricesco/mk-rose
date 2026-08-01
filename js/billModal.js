@@ -225,27 +225,4 @@ async function saveBill() {
   }
 }
 
-function confirmDeleteBill(id) {
-  const bill = DB.bills.find(b=>b.id===id);
-  const ent = DB.entities.find(e=>e.id===bill?.entityId);
-  if (bill && isPeriodLocked(bill.month, bill.year)) { toast(`${MONTHS_FULL[bill.month-1]} ${bill.year} is locked — unlock it in Settings to make changes`, 'error'); return; }
-  document.getElementById('confirm-delete-body').innerHTML = `Delete the <strong>${MONTHS_FULL[bill?.month-1]} ${bill?.year}</strong> bill for <strong>${esc(ent?.name)}</strong>? Nothing is permanently erased — it can be restored later.`;
-  document.getElementById('confirm-delete-btn').textContent = 'Delete bill';
-  document.getElementById('confirm-delete-btn').onclick = async () => {
-    setBtnLoading('confirm-delete-btn', true, 'Deleting…');
-    try {
-      // Soft delete: mark hidden, never actually erase the row.
-      const { error } = await sb.from('bills').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-      if (error) { toast('Error: '+error.message, 'error'); return; }
-      logAudit('bills', id, 'delete', `Deleted ${MONTHS_FULL[bill?.month-1]} ${bill?.year} bill for "${ent?.name}"`);
-      closeModal('modal-confirm-delete');
-      await loadAll();
-      rerenderCurrent();
-      toast('Bill deleted', 'success');
-    } finally {
-      setBtnLoading('confirm-delete-btn', false);
-    }
-  };
-  openModal('modal-confirm-delete');
-}
 
