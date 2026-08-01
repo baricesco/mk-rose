@@ -23,11 +23,13 @@ function printBill(entityId, month, year) {
     `<tr><td>Arrears — ${MONTHS_FULL[m.month-1]} ${m.year}</td><td class="r">${rs(m.charge)}</td></tr>`).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Bill ${billNo} — ${esc(ent.name)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,Helvetica,sans-serif;color:#1a1917;background:#f3f3f0;padding:24px;font-size:13px}
     .sheet{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e0ded9;border-radius:10px;padding:32px 36px}
+    img{max-width:100%}
     .mk-heading{text-align:center;font-size:26px;font-weight:800;letter-spacing:.08em;color:#0369A1;margin-bottom:18px;text-transform:uppercase}
     .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0EA5E9;padding-bottom:18px;margin-bottom:20px}
     .bld-name{font-size:22px;font-weight:700}
@@ -55,6 +57,21 @@ function printBill(entityId, month, year) {
     .pbtn{background:#0EA5E9;color:#fff;margin-right:8px}
     .cbtn{background:#e8e6e1;color:#333}
     @media print{ body{background:#fff;padding:0} .sheet{border:none;border-radius:0;max-width:none} .actions{display:none} }
+    @media (max-width:640px){
+      body{padding:10px;font-size:12.5px}
+      .sheet{padding:18px 16px;border-radius:8px}
+      .mk-heading{font-size:20px}
+      .bld-name{font-size:18px}
+      .top{flex-direction:column;gap:10px}
+      .grid{grid-template-columns:1fr;gap:12px;margin-bottom:16px}
+      table{display:block;overflow-x:auto;white-space:nowrap}
+      .total{flex-direction:column;align-items:flex-start;gap:6px}
+      .total .amt{font-size:22px}
+      .pay-photo-row{flex-direction:column}
+      .pay-photo-row>div{width:100% !important;text-align:left !important}
+      .actions{padding:0 10px}
+      .actions button{width:100%;margin:4px 0 !important;display:block}
+    }
   </style></head><body>
     <div class="sheet">
       <div class="mk-heading">MK Rose</div>
@@ -104,7 +121,7 @@ function printBill(entityId, month, year) {
         <div class="amt">${rs(bill.totalDue)}</div>
       </div>
 
-      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px">
+      <div class="pay-photo-row" style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px">
         ${bill.imageUrl ? `<div style="flex:1;min-width:0">
           <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
           <img src="${esc(bill.imageUrl)}" alt="meter photo" style="max-width:100%;max-height:324px;border:1px solid #e8e6e1;border-radius:8px"/>
