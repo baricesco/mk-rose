@@ -1,34 +1,41 @@
 /* ═══════════════════════════════════════════════════════════
-   ROUTER  (hash-based — real per-page back/forward)
+   ROUTER  (real per-page back/forward — URL never changes)
 
-   Each page (and entity drill-down) gets its own URL hash, e.g.
-   #/dashboard, #/entities, #/entities/42, #/bills. navigate() only
-   ever changes location.hash; the 'hashchange' listener below is the
-   single place that actually swaps the visible page and calls the
-   right render function, so a nav-button click and a browser Back/
-   Forward press go through the exact same code path.
+   The visible URL always stays exactly what it was on load (no hash,
+   no path segments) — navigate() pushes a history entry whose STATE
+   carries the route ({page, sub}), passing the unchanged URL to
+   pushState. Back/Forward still walk a real per-page stack (Chrome's
+   history API tracks state independently of the URL string), it just
+   never shows up in the address bar.
 
-   A separate, smaller mechanism rides on top of this for the exit
-   confirmation: a dummy history entry sits directly under the very
-   first route. Real in-app navigation always changes the hash, which
-   'hashchange' already handles; backing further, past the first page,
-   lands on that dummy entry instead — same hash, so 'hashchange'
-   stays silent, but 'popstate' still fires, which is how we detect
-   "the user is about to actually leave" and ask for confirmation.
+   Since 'popstate' is the only signal here (there's no 'hashchange'
+   equivalent when the URL never changes), it has to do double duty:
+   tell a real "user went back/forward a page" apart from "user backed
+   past the first page and is about to actually leave". We do that by
+   comparing the popped state's route to the one currently on screen —
+   different route = real navigation; identical route = they've hit
+   the guard entry (see armExitGuard) and it's an exit attempt.
 ═══════════════════════════════════════════════════════════ */
 
 const PAGES = ['dashboard','entities','bills','billprint','gallery','reports','audit','settings'];
 
+const routeUrl = () => location.pathname + location.search;
+const sameRoute = (a, b) => !!a && !!b && a.page === b.page && a.sub === b.sub;
+
+let currentRouteState = null; // {page, sub} currently on screen
+
 function parseRoute() {
-  const hash = location.hash.replace(/^#\/?/, '');
-  const [page, sub] = hash.split('/');
-  return { page: PAGES.includes(page) ? page : 'dashboard', sub: sub || null };
+  if (currentRouteState && PAGES.includes(currentRouteState.page)) return currentRouteState;
+  return { page: 'dashboard', sub: null };
 }
 
 function navigate(page, sub) {
-  const hash = '#/' + page + (sub != null ? '/' + sub : '');
-  if (location.hash === hash) renderRoute();
-  else location.hash = hash;
+  const subStr = sub != null ? String(sub) : null;
+  const next = { page, sub: subStr };
+  if (sameRoute(currentRouteState, next)) { renderRoute(); return; }
+  currentRouteState = next;
+  history.pushState(next, '', routeUrl());
+  renderRoute();
 }
 
 function renderRoute() {
@@ -54,14 +61,15 @@ function rerenderCurrent() { renderRoute(); }
 
 function openEntityDetail(entityId) { navigate('entities', entityId); }
 
-window.addEventListener('hashchange', renderRoute);
-
 /* ── Exit confirmation (only once real history is exhausted) ────── */
 let exitPromptAllowNextPop = false;
-let lastRouterHash = location.hash;
 
+// Pushes a duplicate of whatever route is currently on screen, so a
+// Back press lands on an entry indistinguishable from the one below —
+// that's the signal (see 'popstate' below) that there's nothing real
+// left to go back to.
 function armExitGuard() {
-  try { history.pushState({ mkroseExitGuard: true }, '', location.href); } catch (e) {}
+  try { history.pushState(currentRouteState, '', routeUrl()); } catch (e) {}
 }
 
 function cancelExitPrompt() {
@@ -75,17 +83,22 @@ function confirmExitPrompt() {
   history.back();
 }
 
-window.addEventListener('popstate', () => {
-  if (location.hash !== lastRouterHash) { lastRouterHash = location.hash; return; }
-  if (exitPromptAllowNextPop) { exitPromptAllowNextPop = false; return; }
-  openModal('modal-confirm-exit');
+window.addEventListener('popstate', (event) => {
+  const state = (event.state && PAGES.includes(event.state.page)) ? event.state : { page: 'dashboard', sub: null };
+  if (sameRoute(state, currentRouteState)) {
+    if (exitPromptAllowNextPop) { exitPromptAllowNextPop = false; return; }
+    openModal('modal-confirm-exit');
+    return;
+  }
+  currentRouteState = state;
+  renderRoute();
 });
 
 // Sets up the very first route + the exit-guard entry sitting under it.
 // Does NOT render — init() decides when it's safe to render (after
 // showApp(), so Chart.js never creates a chart in a zero-size container).
 function initRouter() {
-  if (!location.hash) history.replaceState(null, '', '#/dashboard');
-  lastRouterHash = location.hash;
+  currentRouteState = { page: 'dashboard', sub: null };
+  history.replaceState(currentRouteState, '', routeUrl());
   armExitGuard();
 }
