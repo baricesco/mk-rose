@@ -479,6 +479,11 @@ select.form-ctrl{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
   .nav-btn{flex-shrink:0}
   .topbar-right{width:100%;flex-wrap:wrap;justify-content:flex-end}
   .month-selector{flex:1;min-width:0}
+  /* The month select is wrapped in a .csel div by customSelect.js — that
+     wrapper, not the (now hidden) <select> itself, is the actual flex
+     item here, so it's what needs flex:1 to grow big. It's the only
+     <select> under .topbar-right, so this is safe to target directly. */
+  .topbar-right .csel{flex:1;min-width:0}
   #topbar-add-entity-btn span{display:none}
 
   /* Two-column forms feel cramped on a phone keyboard-width screen —
