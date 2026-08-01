@@ -20,6 +20,7 @@ function updateThemeToggleIcon(theme) {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   updateThemeToggleIcon(theme);
+  document.getElementById('pink-theme-toggle-btn')?.classList.toggle('active', theme === 'pink');
   // Chart.js bakes colors in at creation time, so re-render whichever
   // page currently has charts on screen to pick up the new palette.
   const _p = parseRoute().page;
@@ -29,6 +30,12 @@ function applyTheme(theme) {
 
 function toggleTheme() {
   const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem('theme', next); } catch (e) {}
+  applyTheme(next);
+}
+
+function togglePinkTheme() {
+  const next = getCurrentTheme() === 'pink' ? 'light' : 'pink';
   try { localStorage.setItem('theme', next); } catch (e) {}
   applyTheme(next);
 }
