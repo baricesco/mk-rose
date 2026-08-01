@@ -5,6 +5,21 @@
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// Shows/hides the red clear (×) button on a .search-wrap based on whether
+// its input currently has a value.
+function updateSearchClear(input) {
+  input.closest('.search-wrap')?.classList.toggle('has-value', !!input.value);
+}
+
+function clearSearchInput(inputId, rerender) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = '';
+  updateSearchClear(input);
+  rerender();
+  input.focus();
+}
+
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target===ov) closeModal(ov.id); });
 });

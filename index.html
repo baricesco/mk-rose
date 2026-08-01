@@ -212,7 +212,8 @@
     <div class="filter-bar">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="search-input" id="entity-search" placeholder="Search entities…" oninput="renderEntitiesPage()"/>
+        <input class="search-input" id="entity-search" placeholder="Search entities…" oninput="renderEntitiesPage();updateSearchClear(this)"/>
+        <button class="search-clear" type="button" aria-label="Clear search" onclick="clearSearchInput('entity-search', renderEntitiesPage)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <select class="filter-select" id="entity-filter-type" onchange="renderEntitiesPage()">
         <option value="">All types</option>
@@ -259,7 +260,8 @@
   <div class="filter-bar">
     <div class="search-wrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input class="search-input" id="bills-search" placeholder="Search by entity…" oninput="renderBillsPage()"/>
+      <input class="search-input" id="bills-search" placeholder="Search by entity…" oninput="renderBillsPage();updateSearchClear(this)"/>
+      <button class="search-clear" type="button" aria-label="Clear search" onclick="clearSearchInput('bills-search', renderBillsPage)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <select class="filter-select" id="bills-filter-month" onchange="renderBillsPage()">
       <option value="">All months</option>
@@ -337,7 +339,8 @@
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="search-wrap" style="width:200px">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="search-input" id="gal-search" placeholder="Search by entity…" oninput="galleryFiltersChanged()"/>
+        <input class="search-input" id="gal-search" placeholder="Search by entity…" oninput="galleryFiltersChanged();updateSearchClear(this)"/>
+        <button class="search-clear" type="button" aria-label="Clear search" onclick="clearSearchInput('gal-search', galleryFiltersChanged)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <select class="filter-select" id="gal-entity" onchange="galleryFiltersChanged()">
         <option value="">All entities</option>
