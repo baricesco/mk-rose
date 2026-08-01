@@ -104,40 +104,22 @@ function renderDashCharts() {
 
   // Entity names are dropped from the x-axis entirely (too many/too long
   // to ever "fit") — the tooltip still shows the full name on hover.
-  // Opening the entity differs by input type since touch has no hover:
-  // mouse/desktop — hover already previews it, so a click opens it
-  // straight away. Touch — the first tap is what shows the tooltip (no
-  // hover to do it first), so that tap must NOT navigate; only a second
-  // tap on that same bar (the one whose tooltip just opened) does.
   // Only entities with an actual bill this month — someone who moved out
   // last month has no business showing up as a zero-unit bar here.
   const chartEntities = DB.entities.filter(e => getBillForMonth(e.id, selectedMonth, selectedYear));
   const entUnits = chartEntities.map(e => getBillForMonth(e.id,selectedMonth,selectedYear).ownUnits);
   const entColors = chartEntities.map(e=>e.type==='shop'?pal.shop:pal.flat);
-  const isHoverCapable = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-  let unitsLastTap = { index:null, time:0 };
   chartInstances.units = new Chart(document.getElementById('unitsChart').getContext('2d'), {
     type:'bar',
     data:{labels:chartEntities.map(e=>e.name),datasets:[{label:'Units',data:entUnits,backgroundColor:entColors,borderRadius:3}]},
     options:{...opts,
     // index/intersect:false = matched by x-position (column) alone, so
-    // hovering/clicking anywhere above a short bar still hits it, not
-    // just the bar's own colored area.
+    // hovering anywhere above a short bar still shows its tooltip, not
+    // just when hovering the bar's own colored area.
     interaction:{mode:'index',intersect:false},
     scales:{
       x:{grid:{display:false},ticks:{display:false}},
       y:{grid:{color:pal.grid},ticks:{font:{size:10},color:pal.tick}}
-    },
-    onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-    onClick:(evt,els)=>{
-      if (!els.length) return;
-      const ent = chartEntities[els[0].index];
-      if (!ent) return;
-      if (isHoverCapable) { openEntityDetail(ent.id); return; }
-      const now = Date.now();
-      const isRepeatTap = unitsLastTap.index===els[0].index && (now-unitsLastTap.time)<3000;
-      unitsLastTap = { index:els[0].index, time:now };
-      if (isRepeatTap) openEntityDetail(ent.id);
     },
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' units'}}}}
   });
