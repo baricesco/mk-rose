@@ -104,13 +104,34 @@ function printBill(entityId, month, year) {
         <div class="amt">${rs(bill.totalDue)}</div>
       </div>
 
-      ${bill.imageUrl ? `<div style="margin-top:20px">
-        <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
-        <img src="${esc(bill.imageUrl)}" alt="meter photo" style="max-width:90%;max-height:324px;border:1px solid #e8e6e1;border-radius:8px"/>
-      </div>` : ''}
+      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px">
+        ${bill.imageUrl ? `<div style="flex:1;min-width:0">
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
+          <img src="${esc(bill.imageUrl)}" alt="meter photo" style="max-width:100%;max-height:324px;border:1px solid #e8e6e1;border-radius:8px"/>
+        </div>` : '<div></div>'}
+        <div style="width:200px;flex-shrink:0;text-align:right;font-size:11px;line-height:1.5">
+          <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Pay via</h4>
+          <div style="margin-bottom:9px">
+            <div style="font-weight:700;color:#0369A1;font-size:12px">Easypaisa</div>
+            <div style="font-family:monospace;font-weight:700">0339-2547266</div>
+            <div style="color:#666">ABDUL WALI</div>
+          </div>
+          <div style="margin-bottom:9px">
+            <div style="font-weight:700;color:#0369A1;font-size:12px">JazzCash</div>
+            <div style="font-family:monospace;font-weight:700">0339-2547266</div>
+            <div style="color:#666">ABDUL WALI</div>
+          </div>
+          <div>
+            <div style="font-weight:700;color:#0369A1;font-size:12px">Askari Bank</div>
+            <div style="color:#666">ABDUL WALI</div>
+            <div style="font-family:monospace">A/C 00263230029025</div>
+            <div style="font-family:monospace;font-size:9.5px;word-break:break-all">IBAN PK87ASCM0000263230029025</div>
+          </div>
+        </div>
+      </div>
 
       <div class="foot">
-        This is a computer-generated bill${s.contact?` · For queries: ${esc(s.contact)}`:''}.<br>
+        ${s.contact?`For queries: ${esc(s.contact)}<br>`:''}
         ${bill.arrearsMonths.length?'Total payable includes unpaid arrears from previous month(s).':'Please pay before the due date to avoid arrears.'}
       </div>
     </div>
@@ -163,7 +184,7 @@ function renderBillPrintPage() {
   }
 
   tbody.innerHTML = rows.map(({ ent, bill }) => `
-    <tr>
+    <tr class="row-clickable" onclick="openEntityDetail(${ent.id})">
       <td><div style="font-weight:600">${esc(ent.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(ent.meter||'—')}</div></td>
       <td>${ent.ownerName ? esc(ent.ownerName) : '<span style="color:var(--text3)">—</span>'}</td>
       <td><span class="badge badge-gray">${ent.type}</span></td>
@@ -171,7 +192,7 @@ function renderBillPrintPage() {
       <td><span class="badge ${bill.paid?'badge-green':'badge-red'}">${bill.paid?'Paid':'Unpaid'}</span></td>
       <td>${bill.imageUrl ? '<span class="badge badge-blue">Photo</span>' : '<span style="color:var(--text3)">—</span>'}</td>
       <td>
-        <button class="btn btn-primary btn-xs" onclick="downloadBillPdf(${ent.id},${bill.month},${bill.year})">
+        <button class="btn btn-primary btn-xs" onclick="event.stopPropagation();downloadBillPdf(${ent.id},${bill.month},${bill.year})">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF
         </button>
       </td>
@@ -216,20 +237,40 @@ async function buildBillSheetEl(ent, bill, onStatus) {
   const arrearsRows = bill.arrearsMonths.map(mo =>
     `<tr><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5">Arrears — ${MONTHS_FULL[mo.month-1]} ${mo.year}</td><td style="padding:9px 12px;font-size:12.5px;border-bottom:1px solid #eceae5;text-align:right">${rs(mo.charge)}</td></tr>`).join('');
 
-  let imgTag = '';
+  let photoTag = '<div></div>';
   if (bill.imageUrl) {
     onStatus?.(`Fetching meter photo for ${ent.name}…`);
     try {
       const dataUrl = await fetchImageAsDataUrl(bill.imageUrl);
-      imgTag = `<div style="margin-top:20px">
+      photoTag = `<div style="flex:1;min-width:0">
         <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Meter / Bill Photo</h4>
-        <img src="${dataUrl}" style="max-width:90%;max-height:400px;border:1px solid #e8e6e1;border-radius:8px;display:block"/>
+        <img src="${dataUrl}" style="max-width:100%;max-height:400px;border:1px solid #e8e6e1;border-radius:8px;display:block"/>
       </div>`;
     } catch (e) {
       console.warn('bill image fetch failed', e);
       toast(`Could not load photo for ${ent.name} — continuing without it`, 'error');
     }
   }
+  const payTag = `<div style="width:200px;flex-shrink:0;text-align:right;font-size:11px;line-height:1.5">
+    <h4 style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Pay via</h4>
+    <div style="margin-bottom:9px">
+      <div style="font-weight:700;color:#0369A1;font-size:12px">Easypaisa</div>
+      <div style="font-family:monospace;font-weight:700">0339-2547266</div>
+      <div style="color:#666">ABDUL WALI</div>
+    </div>
+    <div style="margin-bottom:9px">
+      <div style="font-weight:700;color:#0369A1;font-size:12px">JazzCash</div>
+      <div style="font-family:monospace;font-weight:700">0339-2547266</div>
+      <div style="color:#666">ABDUL WALI</div>
+    </div>
+    <div>
+      <div style="font-weight:700;color:#0369A1;font-size:12px">Askari Bank</div>
+      <div style="color:#666">ABDUL WALI</div>
+      <div style="font-family:monospace">A/C 00263230029025</div>
+      <div style="font-family:monospace;font-size:9.5px;word-break:break-all">IBAN PK87ASCM0000263230029025</div>
+    </div>
+  </div>`;
+  const imgTag = `<div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px">${photoTag}${payTag}</div>`;
 
   const kv = (lbl, val) => `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span style="color:#666">${lbl}</span><span style="font-weight:600;text-align:right">${val}</span></div>`;
 
@@ -283,7 +324,7 @@ async function buildBillSheetEl(ent, bill, onStatus) {
       </div>
       ${imgTag}
       <div style="margin-top:26px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eceae5;padding-top:14px;line-height:1.7">
-        This is a computer-generated bill${s.contact?` · For queries: ${esc(s.contact)}`:''}.<br>
+        ${s.contact?`For queries: ${esc(s.contact)}<br>`:''}
         ${bill.arrearsMonths.length?'Total payable includes unpaid arrears from previous month(s).':'Please pay before the due date to avoid arrears.'}
       </div>
     </div>
@@ -296,7 +337,10 @@ async function buildBillSheetEl(ent, bill, onStatus) {
   return wrap;
 }
 
-// Rasterizes one bill sheet into a single-page (or paginated, if tall) A4 PDF blob.
+// Rasterizes one bill sheet into a single-page A4 PDF blob. Always exactly
+// one page: if the sheet (e.g. bill + a tall meter photo) would run taller
+// than the page, it's scaled down and centered to fit rather than spilling
+// onto a second page.
 async function renderBillToPdfBlob(ent, bill, onStatus) {
   const el = await buildBillSheetEl(ent, bill, onStatus);
   try {
@@ -307,29 +351,19 @@ async function renderBillToPdfBlob(ent, bill, onStatus) {
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24;
-    const imgW = pageW - margin * 2;
-    const imgH = canvas.height * (imgW / canvas.width);
-    const maxPageImgH = pageH - margin * 2;
+    const maxW = pageW - margin * 2;
+    const maxH = pageH - margin * 2;
 
-    if (imgH <= maxPageImgH) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, imgH);
-    } else {
-      // Sheet taller than one A4 page (e.g. bill + photo) — slice across pages.
-      const pxPerPage = Math.floor(maxPageImgH * (canvas.width / imgW));
-      let sY = 0, first = true;
-      while (sY < canvas.height) {
-        const sliceH = Math.min(pxPerPage, canvas.height - sY);
-        const slice = document.createElement('canvas');
-        slice.width = canvas.width;
-        slice.height = sliceH;
-        slice.getContext('2d').drawImage(canvas, 0, sY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        const sliceImgH = sliceH * (imgW / canvas.width);
-        if (!first) pdf.addPage();
-        pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceImgH);
-        sY += sliceH;
-        first = false;
-      }
+    let imgW = maxW;
+    let imgH = canvas.height * (imgW / canvas.width);
+    if (imgH > maxH) {
+      imgH = maxH;
+      imgW = canvas.width * (imgH / canvas.height);
     }
+    const x = margin + (maxW - imgW) / 2;
+    const y = margin;
+
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, imgW, imgH);
     return pdf.output('blob');
   } finally {
     el.remove();

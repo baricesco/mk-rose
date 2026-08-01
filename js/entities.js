@@ -76,13 +76,16 @@ function showEntityDetail(entityId) {
           <div class="detail-meta">
             ${ent.ownerName ? `<span><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(ent.ownerName)}</span>` : ''}
             <span><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Meter: ${esc(ent.meter||'—')}</span>
-            <span><span class="badge badge-gray">${ent.type}</span></span>
+            <span><span class="badge badge-gray">${ent.type}</span>${ent.vacatedAt ? ` <span class="badge badge-amber" style="margin-left:4px">Vacated ${formatPaidDate(ent.vacatedAt)}</span>` : ''}</span>
           </div>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost" onclick="requestUnlockEdit('entity', ${ent.id})">
           <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Edit
+        </button>
+        <button class="btn btn-ghost" title="${ent.vacatedAt ? 'Mark as occupied again' : 'Flag this entity as vacated — tenant/owner has left'}" onclick="toggleEntityVacated(${ent.id})">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>${ent.vacatedAt ? 'Mark occupied' : 'Mark vacated'}
         </button>
         <button class="btn btn-ghost" title="Share with tenant" aria-label="Share with tenant" onclick="openEntityShare(${ent.id})">
           <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share
@@ -153,9 +156,12 @@ function showEntityDetail(entityId) {
 function renderEntitiesPage() {
   const search = document.getElementById('entity-search')?.value.toLowerCase() || '';
   const typeF = document.getElementById('entity-filter-type')?.value || '';
+  const occF = document.getElementById('entity-filter-occupancy')?.value || '';
 
   const ents = DB.entities.filter(e => {
     if (typeF && e.type!==typeF) return false;
+    if (occF==='vacated' && !e.vacatedAt) return false;
+    if (occF==='occupied' && e.vacatedAt) return false;
     if (search && ![e.name,e.meter,e.ownerName].some(v=>String(v||'').toLowerCase().includes(search))) return false;
     return true;
   });
@@ -172,7 +178,7 @@ function renderEntitiesPage() {
     const paid = b?.paid ?? null;
     const charge = b ? b.ownCharge : null;
     return `
-      <tr class="row-clickable" onclick="openEntityDetail(${e.id})">
+      <tr class="row-clickable" onclick="openEntityDetail(${e.id})" style="${e.vacatedAt?'opacity:.6':''}">
         <td>
           <div style="display:flex;align-items:center;gap:10px">
             <div class="eavatar ${e.type}" style="width:32px;height:32px;font-size:11px">${e.id}</div>
@@ -180,7 +186,7 @@ function renderEntitiesPage() {
           </div>
         </td>
         <td>${e.ownerName ? esc(e.ownerName) : '<span style="color:var(--text3)">—</span>'}</td>
-        <td><span class="badge badge-gray">${e.type}</span></td>
+        <td><span class="badge badge-gray">${e.type}</span>${e.vacatedAt ? ` <span class="badge badge-amber" title="Vacated ${formatPaidDate(e.vacatedAt)}">Vacated</span>` : ''}</td>
         <td><span style="font-family:var(--mono);font-size:12px">${esc(e.meter||'—')}</span></td>
         <td class="tbl-num">${charge!==null ? rs(charge) : '<span style="color:var(--text3)">—</span>'}</td>
         <td>${paid===null ? '<span style="color:var(--text3)">—</span>' : `<span class="badge ${paid?'badge-green':'badge-red'}">${paid?'Paid':'Unpaid'}</span>`}</td>
@@ -195,6 +201,22 @@ function renderEntitiesPage() {
       </tr>
     `;
   }).join('');
+}
+
+// Flags an entity as vacated (tenant/shop owner has left) or reverses
+// that — doesn't touch bills, billing, or the share link, purely a
+// status marker so a vacated entity is still visible (dimmed + badged)
+// rather than hidden like a soft-deleted one.
+async function toggleEntityVacated(entityId) {
+  const ent = DB.entities.find(e=>e.id===entityId);
+  if (!ent) return;
+  const next = ent.vacatedAt ? null : new Date().toISOString();
+  const { error } = await sb.from('entities').update({ vacated_at: next }).eq('id', entityId);
+  if (error) { toast('Error: '+error.message, 'error'); return; }
+  logAudit('entities', entityId, 'update', `${next ? 'Marked' : 'Unmarked'} "${ent.name}" as vacated`);
+  await loadAll();
+  rerenderCurrent();
+  toast(next ? 'Entity marked as vacated' : 'Entity marked as occupied', 'success');
 }
 
 /* ═══════════════════════════════════════════════════════════
