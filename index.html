@@ -101,8 +101,8 @@
 :root[data-theme="dark"] img:not([src*=".svg"]) { filter: brightness(.92) contrast(1.02); }
 
 /* ── RESET ────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px;-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:14px;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .2s ease,color .2s ease}
 .topbar,.card,.stat-card,.ecard,.modal,.form-ctrl,.toast,.tbl td,.tbl th{transition:background-color .2s ease,border-color .2s ease,color .2s ease}
 button,input,select,textarea{font-family:inherit;font-size:inherit}
