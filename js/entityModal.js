@@ -97,25 +97,4 @@ async function saveEntity() {
   }
 }
 
-function confirmDeleteEntity(id) {
-  const ent = DB.entities.find(e=>e.id===id);
-  document.getElementById('confirm-delete-body').innerHTML = `Delete <strong>${esc(ent?.name)}</strong>? It will disappear from the app along with its bill history, but nothing is permanently erased — it can be restored later.`;
-  document.getElementById('confirm-delete-btn').textContent = 'Delete entity';
-  document.getElementById('confirm-delete-btn').onclick = async () => {
-    setBtnLoading('confirm-delete-btn', true, 'Deleting…');
-    try {
-      // Soft delete: mark hidden, never actually erase the row.
-      const { error } = await sb.from('entities').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-      if (error) { toast('Error: '+error.message, 'error'); return; }
-      logAudit('entities', id, 'delete', `Deleted entity "${ent?.name}"`);
-      closeModal('modal-confirm-delete');
-      await loadAll();
-      navigate('entities');
-      toast('Entity deleted', 'success');
-    } finally {
-      setBtnLoading('confirm-delete-btn', false);
-    }
-  };
-  openModal('modal-confirm-delete');
-}
 
