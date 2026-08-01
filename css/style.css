@@ -155,7 +155,7 @@ table{border-collapse:collapse;width:100%}
   transition:background .15s,color .15s,border-color .15s,transform .08s,opacity .15s,box-shadow .08s,filter .15s;white-space:nowrap;
 }
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
-.btn:active{transform:translateY(var(--press-depth));box-shadow:0 0 0 0 var(--press-shadow, var(--border2))}
+.btn:active,.btn.btn-pressed-hold{transform:translateY(var(--press-depth));box-shadow:0 0 0 0 var(--press-shadow, var(--border2))}
 .btn:disabled{opacity:.55;cursor:not-allowed;pointer-events:none;transform:none}
 .btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface);--press-shadow:var(--border2)}
 .btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}

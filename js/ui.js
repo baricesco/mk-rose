@@ -24,6 +24,26 @@ document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target===ov) closeModal(ov.id); });
 });
 
+/* ── PRESS-BEFORE-ACTION  (every .btn has a "sinks into its own shadow"
+   :active animation — on a fast tap the action it triggers can repaint
+   the screen before that ever gets a chance to paint. This holds the
+   pressed look for a fixed beat, then replays the click for real, so
+   the press is always visible before whatever it does happens. ────── */
+document.addEventListener('click', (e) => {
+  if (e.__pressDelayed) return;         // our own replayed click — let it through
+  const btn = e.target.closest('.btn');
+  if (!btn || btn.disabled) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  btn.classList.add('btn-pressed-hold');
+  setTimeout(() => {
+    btn.classList.remove('btn-pressed-hold');
+    const replay = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+    replay.__pressDelayed = true;
+    btn.dispatchEvent(replay);
+  }, 100);
+}, true);
+
 function toast(msg, type='') {
   if (type === 'error') console.log('[BillFlow error]', msg);
   const tc = document.getElementById('toast-container');
