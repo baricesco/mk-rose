@@ -119,6 +119,7 @@ function openAddBill() {
   document.getElementById('bf-curr').value = '';
   document.getElementById('bf-rate').value = currentRate;
   document.getElementById('bill-preview').style.display = 'none';
+  document.getElementById('bf-payment-section').style.display = 'none';
   resetBillImage();
   updateVacatedWarning();
   openModal('modal-bill');
@@ -145,6 +146,17 @@ function openEditBill(id) {
   document.getElementById('bf-rate').value = bill.rate;
   resetBillImage();
   if (bill.imageUrl) { billImageExistingUrl = bill.imageUrl; showBillImage(bill.imageUrl); }
+
+  const paySection = document.getElementById('bf-payment-section');
+  if (bill.paid) {
+    paySection.style.display = 'block';
+    document.getElementById('bf-pay-mode').value = bill.paymentMode || 'cash';
+    document.getElementById('bf-pay-date').value = bill.paidAt ? bill.paidAt.slice(0,10) : '';
+    document.getElementById('bf-pay-remarks').value = bill.paymentRemarks || '';
+  } else {
+    paySection.style.display = 'none';
+  }
+
   calcBillPreview();
   updateVacatedWarning();
   openModal('modal-bill');
@@ -230,9 +242,20 @@ async function saveBill() {
 
     const entName = DB.entities.find(e=>e.id===entityId)?.name || `Entity #${entityId}`;
     if (editId) {
+      const origBill = DB.bills.find(b=>b.id===parseInt(editId));
+      let paymentChanged = false;
+      if (origBill?.paid) {
+        const payMode = document.getElementById('bf-pay-mode').value;
+        const payDate = document.getElementById('bf-pay-date').value;
+        const payRemarks = document.getElementById('bf-pay-remarks').value.trim();
+        payload.payment_mode = payMode || null;
+        payload.paid_at = payDate ? new Date(payDate + 'T12:00:00').toISOString() : origBill.paidAt;
+        payload.payment_remarks = payRemarks || null;
+        paymentChanged = payMode !== (origBill.paymentMode||'cash') || payDate !== (origBill.paidAt ? origBill.paidAt.slice(0,10) : '') || payRemarks !== (origBill.paymentRemarks||'');
+      }
       const { error } = await sb.from('bills').update(payload).eq('id', parseInt(editId));
       if (error) { toast(error.code==='23505'?'A bill already exists for that entity/month':'Error: '+error.message, 'error'); return; }
-      logAudit('bills', parseInt(editId), 'update', `Updated ${MONTHS_FULL[month-1]} ${year} reading for "${entName}"`);
+      logAudit('bills', parseInt(editId), 'update', `Updated ${MONTHS_FULL[month-1]} ${year} reading for "${entName}"${paymentChanged ? ' (payment details updated)' : ''}`);
       toast('Reading updated', 'success');
     } else {
       const { data, error } = await sb.from('bills').insert({ ...payload, paid:false }).select().single();

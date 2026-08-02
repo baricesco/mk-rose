@@ -17,7 +17,14 @@ function showEntityDetail(entityId) {
   detailView.style.display = '';
 
   const ent = DB.entities.find(e=>e.id===entityId);
-  if (!ent) { showEntityList(); return; }
+  if (!ent) {
+    showEntityList();
+    if (currentRouteState && currentRouteState.page === 'entities' && currentRouteState.sub) {
+      currentRouteState = { page: 'entities', sub: null };
+      history.replaceState(currentRouteState, '', routeUrl());
+    }
+    return;
+  }
 
   const computed = computeBillAmounts(entityId);
   const totalBilled    = computed.reduce((s,b)=>s+b.ownCharge,0);
@@ -63,7 +70,7 @@ function showEntityDetail(entityId) {
 
   detailView.innerHTML = `
     <div class="breadcrumb">
-      <a onclick="showEntityList()"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>Entities</a>
+      <a onclick="navigate('entities')"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>Entities</a>
       <svg viewBox="0 0 24 24"><polyline points="9,18 15,12 9,6"/></svg>
       <span>${esc(ent.name)}</span>
     </div>

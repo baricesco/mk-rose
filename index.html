@@ -603,6 +603,31 @@
         </div>
       </div>
       <div class="form-calc" id="bill-preview" style="display:none"></div>
+
+      <div id="bf-payment-section" style="display:none">
+        <div class="divider" style="margin:14px 0 12px"></div>
+        <div class="form-lbl" style="margin-bottom:10px">Payment details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-lbl">Payment mode</label>
+            <select class="form-ctrl" id="bf-pay-mode">
+              <option value="cash">Cash</option>
+              <option value="askari">Askari Bank</option>
+              <option value="easypaisa">Easypaisa</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-lbl">Date paid</label>
+            <input class="form-ctrl" id="bf-pay-date" type="date"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Remarks</label>
+          <input class="form-ctrl" id="bf-pay-remarks" placeholder="Optional note" autocomplete="off"/>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-bill')">Cancel</button>
