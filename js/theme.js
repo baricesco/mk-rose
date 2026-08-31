@@ -20,6 +20,8 @@ function updateThemeToggleIcon(theme) {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   updateThemeToggleIcon(theme);
+  // Keeps the installed app's status/address bar in step with the theme.
+  if (typeof syncThemeColorMeta === 'function') syncThemeColorMeta();
   // Chart.js bakes colors in at creation time, so re-render whichever
   // page currently has charts on screen to pick up the new palette.
   const _p = parseRoute().page;
