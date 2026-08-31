@@ -15,7 +15,7 @@
    caches are dropped on activate.
 ═══════════════════════════════════════════════════════════ */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = 'mkrose-shell-' + VERSION;
 const ASSET_CACHE = 'mkrose-assets-' + VERSION;
 // Photos are immutable once uploaded and expensive to refetch, so their
@@ -123,16 +123,22 @@ async function networkFirstDoc(request) {
   }
 }
 
-// Same-origin CSS/JS: serve the cached copy immediately, refresh it in the
-// background. These filenames carry no content hash, so a plain cache-first
-// would pin an old build until the next VERSION bump.
-async function staleWhileRevalidate(request, cacheName) {
+// Same-origin CSS/JS: network first, cache only as the offline fallback —
+// deliberately NOT stale-while-revalidate. index.html is network-first, so
+// serving scripts from cache would pair a fresh page with the previous
+// deploy's JS on the same load: the new markup is there but the functions
+// its onclick attributes call are not, and the buttons silently do nothing.
+// These filenames carry no content hash, so there is nothing to make the
+// two agree except fetching both from the same place.
+async function networkFirstAsset(request, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then(res => { if (res && res.ok) cache.put(request, res.clone()); return res; })
-    .catch(() => null);
-  return cached || (await network) || Response.error();
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  } catch (e) {
+    return (await cache.match(request)) || Response.error();
+  }
 }
 
 // Version-pinned vendor URLs: never change, so the cache always wins.
@@ -184,7 +190,7 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') { event.respondWith(networkFirstDoc(request)); return; }
 
   if (url.origin === self.location.origin) {
-    event.respondWith(staleWhileRevalidate(request, ASSET_CACHE));
+    event.respondWith(networkFirstAsset(request, ASSET_CACHE));
     return;
   }
 

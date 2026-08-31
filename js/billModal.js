@@ -125,14 +125,17 @@ function updateBillModalWarnings() {
   const ent = DB.entities.find(e=>e.id===entityId);
   const vacWarn = document.getElementById('bf-vacated-warning');
   const clashWarn = document.getElementById('bf-exists-warning');
+  const clashText = document.getElementById('bf-exists-text');
   const saveBtn = document.getElementById('btn-save-bill');
   let blocked = false;
 
   if (ent?.vacatedAt) {
-    vacWarn.textContent = `"${ent.name}" is marked vacated (since ${formatPaidDate(ent.vacatedAt)}) — mark it occupied again before adding a reading.`;
-    vacWarn.style.display = 'block';
+    if (vacWarn) {
+      vacWarn.textContent = `"${ent.name}" is marked vacated (since ${formatPaidDate(ent.vacatedAt)}) — mark it occupied again before adding a reading.`;
+      vacWarn.style.display = 'block';
+    }
     blocked = true;
-  } else {
+  } else if (vacWarn) {
     vacWarn.style.display = 'none';
   }
 
@@ -141,15 +144,21 @@ function updateBillModalWarnings() {
   if (clash) {
     const month = parseInt(document.getElementById('bf-month').value);
     const year = parseInt(document.getElementById('bf-year').value);
-    document.getElementById('bf-exists-text').textContent =
-      `"${ent?.name || 'This entity'}" already has a ${MONTHS_FULL[month-1]} ${year} reading (${num(clash.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}). Pick a different month, or edit that reading instead.`;
-    clashWarn.style.display = 'block';
+    if (clashText) {
+      clashText.textContent =
+        `"${ent?.name || 'This entity'}" already has a ${MONTHS_FULL[month-1]} ${year} reading (${num(clash.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}). Pick a different month, or edit that reading instead.`;
+    }
+    if (clashWarn) clashWarn.style.display = 'block';
     blocked = true;
-  } else {
+  } else if (clashWarn) {
     clashWarn.style.display = 'none';
   }
 
-  saveBtn.disabled = blocked;
+  // Never leave Save stuck off because a warning element is missing — a
+  // half-updated cache (new scripts, previous deploy's markup) would
+  // otherwise turn the button into a silent no-op with nothing on screen
+  // to explain why.
+  if (saveBtn) saveBtn.disabled = blocked;
 }
 
 // Kept as the name the rest of the app calls; the vacated check is now
