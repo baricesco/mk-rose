@@ -585,11 +585,8 @@
         </div>
       </div>
       <div id="bf-vacated-warning" style="display:none;font-size:12px;color:var(--red-dk);background:var(--red-bg);border-radius:var(--radius);padding:9px 11px;margin-bottom:16px;line-height:1.5"></div>
-      <div id="bf-exists-warning" style="display:none;font-size:12px;color:var(--amber);background:var(--amber-bg);border-radius:var(--radius);padding:9px 11px;margin-bottom:16px;line-height:1.5">
+      <div id="bf-exists-warning" style="display:none;font-size:12px;color:var(--blue);background:var(--blue-bg);border-radius:var(--radius);padding:9px 11px;margin-bottom:16px;line-height:1.5">
         <span id="bf-exists-text"></span>
-        <button type="button" class="btn btn-ghost btn-xs" style="margin-top:8px" onclick="editClashingBill()">
-          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit that reading
-        </button>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -653,7 +650,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-bill')">Cancel</button>
-      <button class="btn btn-primary" id="btn-save-bill" onclick="saveBill()">Save reading</button>
+      <button class="btn btn-primary" id="btn-save-bill" onclick="saveBill()"><span id="btn-save-bill-label">Save reading</span></button>
     </div>
   </div>
 </div>

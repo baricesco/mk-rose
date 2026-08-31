@@ -103,30 +103,79 @@ function nextOpenPeriod(entityId) {
   return { month, year };
 }
 
-// The bill (if any) already occupying the entity/month/year the modal is
-// currently pointing at — excluding the one being edited, which is allowed
-// to sit on its own period.
-function billClashingWithModal() {
+// The bill already sitting on the entity/month/year the modal points at.
+function billForModalPeriod() {
   const entityId = parseInt(document.getElementById('bf-entity').value);
   const month = parseInt(document.getElementById('bf-month').value);
   const year = parseInt(document.getElementById('bf-year').value);
-  const editId = parseInt(document.getElementById('bill-edit-id').value || -1);
   if (!entityId || !month || !year) return null;
-  return DB.bills.find(b => b.entityId === entityId && b.month === month && b.year === year && b.id !== editId) || null;
+  return DB.bills.find(b => b.entityId === entityId && b.month === month && b.year === year) || null;
 }
 
-let billClashId = null;
+// How the modal was opened. Only one opened as "add" re-points itself at an
+// existing bill; an edit opened from a table keeps the target it was given,
+// so moving a bill to a different month still behaves as it always has.
+let billModalOpenedAs = 'add';
+let billAdoptedId = null;
 
-// Two independent reasons Save can be blocked — a vacated entity, or a
-// period that's already billed — so they share one function rather than
-// each toggling the button and undoing the other.
+// Loads the existing reading for this period into the open modal, so saving
+// updates it. Typing a reading for a month that already has one is how a
+// wrong reading gets corrected; refusing it outright left editing the
+// database by hand as the only way to fix a mistake.
+function adoptBillForPeriod(bill) {
+  document.getElementById('bill-edit-id').value = bill.id;
+  document.getElementById('bf-prev').value = bill.prevReading;
+  document.getElementById('bf-curr').value = bill.currReading;
+  document.getElementById('bf-rate').value = bill.rate;
+  document.getElementById('modal-bill-title').textContent = 'Update reading';
+  resetBillImage();
+  if (bill.imageUrl) { billImageExistingUrl = bill.imageUrl; showBillImage(bill.imageUrl); }
+
+  const paySection = document.getElementById('bf-payment-section');
+  if (bill.paid) {
+    paySection.style.display = 'block';
+    document.getElementById('bf-pay-mode').value = bill.paymentMode || 'cash';
+    document.getElementById('bf-pay-date').value = bill.paidAt ? bill.paidAt.slice(0,10) : '';
+    document.getElementById('bf-pay-remarks').value = bill.paymentRemarks || '';
+  } else {
+    paySection.style.display = 'none';
+  }
+}
+
+// Back to a blank new reading after moving off an already-billed month.
+function releaseAdoptedBill() {
+  document.getElementById('bill-edit-id').value = '';
+  document.getElementById('bf-curr').value = '';
+  document.getElementById('modal-bill-title').textContent = 'Add meter reading';
+  document.getElementById('bf-payment-section').style.display = 'none';
+  resetBillImage();
+}
+
+// Keeps the modal pointed at the right bill as entity/month/year change.
+// Returns true while it is sitting on an existing reading.
+function syncBillModalToPeriod() {
+  if (billModalOpenedAs !== 'add') return false;
+  const existing = billForModalPeriod();
+  if (existing) {
+    if (billAdoptedId !== existing.id) { billAdoptedId = existing.id; adoptBillForPeriod(existing); }
+    return true;
+  }
+  if (billAdoptedId !== null) { billAdoptedId = null; releaseAdoptedBill(); }
+  return false;
+}
+
+// A vacated entity is the only thing that blocks saving. An already-billed
+// month is not an error — it just means this save is an update, which the
+// note below says plainly rather than disabling the button and leaving the
+// screen with no explanation.
 function updateBillModalWarnings() {
   const entityId = parseInt(document.getElementById('bf-entity').value);
   const ent = DB.entities.find(e=>e.id===entityId);
   const vacWarn = document.getElementById('bf-vacated-warning');
-  const clashWarn = document.getElementById('bf-exists-warning');
-  const clashText = document.getElementById('bf-exists-text');
+  const infoWarn = document.getElementById('bf-exists-warning');
+  const infoText = document.getElementById('bf-exists-text');
   const saveBtn = document.getElementById('btn-save-bill');
+  const saveLabel = document.getElementById('btn-save-bill-label');
   let blocked = false;
 
   if (ent?.vacatedAt) {
@@ -139,20 +188,18 @@ function updateBillModalWarnings() {
     vacWarn.style.display = 'none';
   }
 
-  const clash = billClashingWithModal();
-  billClashId = clash ? clash.id : null;
-  if (clash) {
+  const updating = billAdoptedId !== null;
+  if (updating) {
     const month = parseInt(document.getElementById('bf-month').value);
     const year = parseInt(document.getElementById('bf-year').value);
-    if (clashText) {
-      clashText.textContent =
-        `"${ent?.name || 'This entity'}" already has a ${MONTHS_FULL[month-1]} ${year} reading (${num(clash.currReading).toLocaleString(undefined, { maximumFractionDigits: 2 })}). Pick a different month, or edit that reading instead.`;
+    if (infoText) {
+      infoText.textContent = `${MONTHS_FULL[month-1]} ${year} already has a reading — saving replaces it. The rest of the billing history is untouched.`;
     }
-    if (clashWarn) clashWarn.style.display = 'block';
-    blocked = true;
-  } else if (clashWarn) {
-    clashWarn.style.display = 'none';
+    if (infoWarn) infoWarn.style.display = 'block';
+  } else if (infoWarn) {
+    infoWarn.style.display = 'none';
   }
+  if (saveLabel) saveLabel.textContent = updating ? 'Update reading' : 'Save reading';
 
   // Never leave Save stuck off because a warning element is missing — a
   // half-updated cache (new scripts, previous deploy's markup) would
@@ -161,21 +208,13 @@ function updateBillModalWarnings() {
   if (saveBtn) saveBtn.disabled = blocked;
 }
 
-// Kept as the name the rest of the app calls; the vacated check is now
-// one half of the combined warning pass above.
+// Kept as the name the rest of the app calls.
 function updateVacatedWarning() { updateBillModalWarnings(); }
-
-// One click from "this month is already billed" to actually changing it —
-// still routed through the type-EDIT unlock gate, same as every other edit.
-function editClashingBill() {
-  const id = billClashId;
-  if (!id) return;
-  closeModal('modal-bill');
-  requestUnlockEdit('bill', id);
-}
 
 function openAddBill() {
   const currentRate = DB.settings.currentRate;
+  billModalOpenedAs = 'add';
+  billAdoptedId = null;
   document.getElementById('modal-bill-title').textContent = 'Add meter reading';
   document.getElementById('bill-edit-id').value = '';
   const sel = document.getElementById('bf-entity');
@@ -201,6 +240,8 @@ function openAddBillForEntity(entityId) {
 function openEditBill(id) {
   const bill = DB.bills.find(b=>b.id===id);
   if (!bill) return;
+  billModalOpenedAs = 'edit';
+  billAdoptedId = null;
   document.getElementById('modal-bill-title').textContent = 'Edit reading';
   document.getElementById('bill-edit-id').value = id;
   const sel = document.getElementById('bf-entity');
@@ -249,26 +290,27 @@ function onBillEntityChange() {
   const entityId = parseInt(document.getElementById('bf-entity').value);
   if (!entityId) { document.getElementById('bf-prev').value=''; updateBillModalWarnings(); return; }
 
-  // Adding (not editing): land on the first month this entity hasn't been
-  // billed for yet, so picking an already-billed entity doesn't open on a
-  // period that can only fail at save time.
-  if (!document.getElementById('bill-edit-id').value) {
+  // Adding: open on the first month this entity has no reading for, so the
+  // common case (this month's reading) needs no month picking. Any earlier
+  // month can still be chosen by hand, and lands on its existing reading.
+  if (billModalOpenedAs === 'add') {
     const open = nextOpenPeriod(entityId);
     document.getElementById('bf-month').value = open.month;
     document.getElementById('bf-year').value = open.year;
   }
 
-  fillBillPrevAndRate();
+  if (!syncBillModalToPeriod()) fillBillPrevAndRate();
   updateBillModalWarnings();
   calcBillPreview();
 }
 
 // Month/year changed by hand. Nothing was bound to these before, so the
 // previous reading and rate stayed stale on whatever period the modal
-// opened with — they now re-derive for the period actually selected.
-// Add mode only: an edit keeps the reading/rate the bill was saved with.
+// opened with. Landing on a month that already has a reading loads it for
+// updating; landing on a free one re-derives a fresh previous reading.
 function onBillPeriodChange() {
-  if (!document.getElementById('bill-edit-id').value) fillBillPrevAndRate();
+  const updating = syncBillModalToPeriod();
+  if (!updating && billModalOpenedAs === 'add') fillBillPrevAndRate();
   updateBillModalWarnings();
   calcBillPreview();
 }
