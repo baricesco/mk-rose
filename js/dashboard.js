@@ -10,6 +10,7 @@ function destroyChart(name) {
 
 function renderDashboard() {
   renderDashStats();
+  renderPaymentsByMethod();
   renderDashCharts();
   renderDashEntities();
   document.getElementById('month-label-dash').textContent = MONTHS[selectedMonth-1]+' '+selectedYear;
@@ -61,6 +62,51 @@ function renderDashStats() {
       <div class="stat-lbl">Total units</div>
       <div class="stat-val">${s.totalUnits.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
       <div class="stat-sub">${s.totalUnits ? 'Avg Rs '+(s.totalBilled/s.totalUnits).toFixed(2)+'/unit' : 'No bills yet'}</div>
+    </div>
+  `;
+}
+
+const PAY_METHOD_COLORS = { cash:'var(--green)', easypaisa:'var(--purple)', askari:'var(--blue)', jazzcash:'var(--amber)', other:'var(--text3)' };
+
+// The month's collected amount split by payment mode, on the same ownCharge
+// basis as the Collected stat so the parts always add up to it. Bills paid
+// before payment mode was recorded land in "Not recorded", listed last.
+function getPaymentsByMethod(m, y) {
+  const byMode = {};
+  DB.entities.forEach(ent => {
+    const b = getBillForMonth(ent.id, m, y);
+    if (!b || !b.paid) return;
+    const mode = b.paymentMode || '';
+    byMode[mode] ??= { mode, amount: 0, count: 0 };
+    byMode[mode].amount += b.ownCharge;
+    byMode[mode].count++;
+  });
+  const order = Object.keys(PAYMENT_MODE_LABELS);
+  const rank = mode => mode === '' ? Infinity : (order.includes(mode) ? order.indexOf(mode) : order.length);
+  return Object.values(byMode)
+    .sort((a,b) => rank(a.mode) - rank(b.mode))
+    .map(r => ({ ...r, amount: round2(r.amount), label: r.mode ? paymentModeLabel(r.mode) : 'Not recorded', color: PAY_METHOD_COLORS[r.mode] || 'var(--border2)' }));
+}
+
+function renderPaymentsByMethod() {
+  const rows = getPaymentsByMethod(selectedMonth, selectedYear);
+  const total = rows.reduce((s,r) => s + r.amount, 0);
+  const count = rows.reduce((s,r) => s + r.count, 0);
+  const period = MONTHS[selectedMonth-1] + ' ' + selectedYear;
+  const plural = n => n + ' bill' + (n === 1 ? '' : 's');
+  document.getElementById('pay-methods-sub').textContent = count ? `${period} · ${rs(total)} collected from ${plural(count)}` : period;
+
+  const el = document.getElementById('pay-methods');
+  if (!count) { el.innerHTML = `<div class="pm-empty">No payments recorded for ${period} yet</div>`; return; }
+  const pct = r => total ? Math.round(r.amount / total * 100) : 0;
+  el.innerHTML = `
+    <div class="pm-bar">${rows.filter(r => r.amount > 0).map(r => `<span style="flex:${r.amount} 0 0;background:${r.color}" title="${esc(r.label)}: ${rs(r.amount)}"></span>`).join('')}</div>
+    <div class="pm-grid">${rows.map(r => `
+      <div class="pm-item">
+        <div class="pm-lbl"><span class="leg-dot" style="background:${r.color}"></span>${esc(r.label)}</div>
+        <div class="pm-val">${rs(r.amount)}</div>
+        <div class="pm-sub">${plural(r.count)} · ${pct(r)}%</div>
+      </div>`).join('')}
     </div>
   `;
 }
