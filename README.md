@@ -19,7 +19,7 @@ deploy by `.vercelignore`.
 
 | Path | What |
 |---|---|
-| `index.html` | The whole app's markup: login, 8 pages, 13 modals. Behaviour lives in `js/`. |
+| `index.html` | The whole app's markup: login, 9 pages, 13 modals. Behaviour lives in `js/`. |
 | `share.html` | Public read-only page for one entity, resolved by `?s=<share_token>`. |
 | `css/style.css` | All styling. Light + dark via `:root[data-theme]` tokens at the top. |
 | `js/*.js` | Plain classic scripts sharing one global scope, loaded in dependency order at the bottom of `index.html`. Order matters. |

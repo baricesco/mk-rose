@@ -17,7 +17,7 @@
    the guard entry (see armExitGuard) and it's an exit attempt.
 ═══════════════════════════════════════════════════════════ */
 
-const PAGES = ['dashboard','entities','bills','billprint','gallery','reports','audit','settings'];
+const PAGES = ['dashboard','entities','bills','payments','billprint','gallery','reports','audit','settings'];
 
 const routeUrl = () => location.pathname + location.search;
 const sameRoute = (a, b) => !!a && !!b && a.page === b.page && a.sub === b.sub;
@@ -48,6 +48,7 @@ function renderRoute() {
   if (page === 'dashboard') renderDashboard();
   else if (page === 'entities') { if (sub) showEntityDetail(Number(sub)); else showEntityList(); }
   else if (page === 'bills') renderBillsPage();
+  else if (page === 'payments') renderPaymentsPage();
   else if (page === 'billprint') renderBillPrintPage();
   else if (page === 'gallery') renderGalleryPage();
   else if (page === 'reports') renderReports();

@@ -15,7 +15,7 @@
    caches are dropped on activate.
 ═══════════════════════════════════════════════════════════ */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = 'mkrose-shell-' + VERSION;
 const ASSET_CACHE = 'mkrose-assets-' + VERSION;
 // Photos are immutable once uploaded and expensive to refetch, so their
@@ -44,6 +44,7 @@ const SHELL = [
   './js/dashboard.js',
   './js/entities.js',
   './js/bills.js',
+  './js/payments.js',
   './js/settings.js',
   './js/reports.js',
   './js/audit.js',
